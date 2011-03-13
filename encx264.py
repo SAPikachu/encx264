@@ -22,6 +22,11 @@ priority_values = {
     "high": 0x80,
 }
 
+def check_return_code(p):
+    if p.returncode != 0:
+        print("x264 exited with return code", p.returncode)
+        sys.exit(p.returncode)
+
 def doEncode():
     parser = OptionParser()
     parser.add_option("--target")
@@ -147,8 +152,12 @@ def doEncode():
                             bitrate = int(m.group(1))
                             with open(outFile + ".bitrate.txt","w") as f:
                                 f.write(str(bitrate))
+
+            p.communicate()
             print("")
             print("")
+            check_return_code(p)
+
             pass1time = datetime.now()
             print("1st pass completed.")
             print("Current time: " + str(pass1time))
@@ -198,6 +207,7 @@ def doEncode():
 
         print("")
         print("")
+        check_return_code(p)
         pass2time = datetime.now()
         print("2nd pass completed.")
         print("Current time: " + str(pass2time))

@@ -4,4 +4,4 @@
 x264_path = 'x264.exe'
 
 # possible values: idle, below_normal, normal, above_normal, high
-x264_priority = 'below_normal'
+default_priority = 'below_normal'

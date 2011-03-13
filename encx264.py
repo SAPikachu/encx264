@@ -10,9 +10,17 @@ from encx264_defaults import *
 try:
     from encx264_targets import *
 except ImportError:
-    print("Can't find encx264_targets.py, " + \
-          "please create one from encx264_targets.py.sample")
+    print("Can't find encx264_targets.py.")
+    print("Please create one from encx264_targets.py.sample.")
     sys.exit(1)
+
+priority_values = {
+    "idle": 0x40,
+    "below_normal": 0x4000,
+    "normal": 0x20,
+    "above_normal": 0x8000,
+    "high": 0x80,
+}
 
 def doEncode():
     parser = OptionParser()
@@ -27,6 +35,7 @@ def doEncode():
     parser.add_option("--ref", type="int")
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
+    parser.add_option("--priority")
 
     if "--" in sys.argv:
         extra_args = ' '.join([(" " in x) and '"{0}"'.format(x) or x \
@@ -85,6 +94,14 @@ def doEncode():
 
     statsFile = outFile + ".x264_stats"
 
+    priority = opt.priority or default_priority
+    priority = priority.lower()
+
+    if priority not in priority_values:
+        print("Invalid priority:", priority)
+        return
+
+    priority_value = priority_values[priority]
 
     x264_exec = '"{0}"'.format(os.path.join(
                                 os.path.dirname(sys.argv[0]),
@@ -116,6 +133,7 @@ def doEncode():
             p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
                                   stderr = subprocess.STDOUT,
+                                  creationflags = priority_value,
                                   universal_newlines = True)
             for l in p.stdout:
                 log.write(l)
@@ -167,6 +185,7 @@ def doEncode():
         p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
                                   stderr = subprocess.STDOUT,
+                                  creationflags = priority_value,
                                   universal_newlines = True)
 
                 

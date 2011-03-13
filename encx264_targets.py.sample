@@ -1,5 +1,11 @@
 
 x264_path = 'x264.exe'
+
+
+# possible values: idle, below_normal, normal, above_normal, high
+x264_priority = 'below_normal'
+
+
 common_params = "--threads auto --thread-input {tc} --sar {sar} "+ \
                 "--ref {ref} --aq-strength 1.5 "+ \
                 "--weightb --mixed-refs --no-fast-pskip "+ \

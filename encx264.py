@@ -4,9 +4,15 @@ from datetime import datetime
 import re
 import subprocess
 import sys
-from functools import reduce
 
-from encx264_targets import *
+from encx264_defaults import *
+
+try:
+    from encx264_targets import *
+except ImportError:
+    print("Can't find encx264_targets.py, " + \
+          "please create one from encx264_targets.py.sample")
+    sys.exit(1)
 
 def doEncode():
     parser = OptionParser()
@@ -23,13 +29,8 @@ def doEncode():
                       dest="bitrate_ratio")
 
     if "--" in sys.argv:
-        extra_args = \
-            reduce(lambda cur, x: 
-                       (" " in x
-                        and '{0} "{1}"'
-                        or '{0} {1}').format(cur, x),
-                   sys.argv[sys.argv.index("--")+1:],
-                   "")
+        extra_args = ' '.join([(" " in x) and '"{0}"'.format(x) or x \
+                     for x in sys.argv[sys.argv.index("--")+1:]])
         sys.argv = sys.argv[:sys.argv.index("--")]
     else:
         extra_args = ""

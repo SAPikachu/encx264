@@ -23,6 +23,7 @@ priority_values = {
 }
 
 def check_return_code(p):
+    p.communicate()
     if p.returncode != 0:
         print("x264 exited with return code", p.returncode)
         sys.exit(p.returncode)
@@ -153,7 +154,6 @@ def doEncode():
                             with open(outFile + ".bitrate.txt","w") as f:
                                 f.write(str(bitrate))
 
-            p.communicate()
             print("")
             print("")
             check_return_code(p)
@@ -165,56 +165,59 @@ def doEncode():
             print("")
             print("")
 
+
+        if "pass2" not in params:
+            print("Encode completed.")
+        else:
             log.write("\n")
             log.write("---------------------------------------------\n")
             log.write("\n")
+            if bitrate == -1:
+                if os.path.isfile(outFile + ".bitrate.txt"):
+                    with open(outFile + ".bitrate.txt","r") as f:
+                        bitrate = int(f.read().strip())
+                else:
+                    print("Bitrate is unknown!")
+                    return
 
-        if bitrate == -1:
-            if os.path.isfile(outFile + ".bitrate.txt"):
-                with open(outFile + ".bitrate.txt","r") as f:
-                    bitrate = int(f.read().strip())
-            else:
-                print("Bitrate is unknown!")
-                return
+            bitrate = int(bitrate * opt.bitrate_ratio)
+            
+            cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile}}"' \
+                      .format(x264_exec,
+                              common_params,
+                              common_params_pass2,
+                              params["common"],
+                              params["pass2"])
+            cmdline = cmdline.format(**locals())
 
-        bitrate = int(bitrate * opt.bitrate_ratio)
-        
-        cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile}}"' \
-                  .format(x264_exec,
-                          common_params,
-                          common_params_pass2,
-                          params["common"],
-                          params["pass2"])
-        cmdline = cmdline.format(**locals())
+            print("Second pass command line: ", cmdline, file=log)
+            print("", file=log)
 
-        print("Second pass command line: ", cmdline, file=log)
-        print("", file=log)
+            
+            p =  subprocess.Popen(cmdline,
+                                      stdout = subprocess.PIPE,
+                                      stderr = subprocess.STDOUT,
+                                      creationflags = priority_value,
+                                      universal_newlines = True)
 
-        
-        p =  subprocess.Popen(cmdline,
-                                  stdout = subprocess.PIPE,
-                                  stderr = subprocess.STDOUT,
-                                  creationflags = priority_value,
-                                  universal_newlines = True)
+                    
+            for l in p.stdout:
+                log.write(l)
+                if l.startswith("["):
+                    print(l.strip().ljust(78),end='\r')
+                else:
+                    print(l,end='')
 
-                
-        for l in p.stdout:
-            log.write(l)
-            if l.startswith("["):
-                print(l.strip().ljust(78),end='\r')
-            else:
-                print(l,end='')
-
-        print("")
-        print("")
-        check_return_code(p)
-        pass2time = datetime.now()
-        print("2nd pass completed.")
-        print("Current time: " + str(pass2time))
-        print("Time elapsed: " + str(pass2time - pass1time))
-        print("Total: " + str(pass2time - start))
-        print("")
-        print("")
+            print("")
+            print("")
+            check_return_code(p)
+            pass2time = datetime.now()
+            print("2nd pass completed.")
+            print("Current time: " + str(pass2time))
+            print("Time elapsed: " + str(pass2time - pass1time))
+            print("Total: " + str(pass2time - start))
+            print("")
+            print("")
 
 if __name__ == "__main__":
     try:

@@ -2,12 +2,11 @@ import json
 from urllib.request import urlopen
 from urllib.error import URLError
 import os
+import sys
 
 __all__ = ["update"]
 
 base_url = "http://github.com/api/v2/json/"
-base_path = os.path.dirname(__file__)
-rev_record_file = os.path.join(base_path, ".current_rev")
 
 def read_url(url):
     with urlopen(base_url + url) as u:
@@ -40,7 +39,8 @@ def download_tree(id):
 
     return tree
 
-def update_impl(branch="stable"):
+def update_impl(branch="stable", base_path=os.path.dirname(sys.argv[0])):
+    rev_record_file = os.path.join(base_path, ".current_rev")
     current_rev = ""
     if os.path.isfile(rev_record_file):
         with open(rev_record_file, "r") as f:

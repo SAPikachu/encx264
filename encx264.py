@@ -5,6 +5,8 @@ import re
 import subprocess
 import sys
 
+__all__ = ["encode"]
+
 from encx264_defaults import *
 
 try:

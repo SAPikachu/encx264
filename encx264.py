@@ -28,7 +28,7 @@ def check_return_code(p):
         print("x264 exited with return code", p.returncode)
         sys.exit(p.returncode)
 
-def doEncode():
+def encode_impl():
     parser = OptionParser()
     parser.add_option("--target")
     parser.add_option("--inFile")
@@ -219,8 +219,13 @@ def doEncode():
             print("")
             print("")
 
-if __name__ == "__main__":
+def encode():
     try:
-        doEncode()
+        encode_impl()
     except KeyboardInterrupt:
         print("")
+        print("")
+        print("Encode interrupted by user.")
+        
+if __name__ == "__main__":
+    encode()

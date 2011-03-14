@@ -17,7 +17,8 @@ def load_json(url):
     return json.loads(read_url(url).decode("utf-8"))
 
 def write_tree(tree, base_dir):
-    os.makedirs(base_dir, exist_ok=True)
+    if not os.path.isdir(base_dir):
+        os.makedirs(base_dir)
         
     for name, val in tree.items():
         full_path = os.path.join(base_dir, name)

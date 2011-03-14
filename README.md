@@ -28,6 +28,12 @@ target的定义方法请参考encx264_targets.py内现有的target，注意花�
 *  --pass 2：跳过1pass，如之前用脚本运行过1pass，码率会从记录文件内读取，否则需要用--bitrate指定码率
 *  --tc "xxxx.txt"：指定输入timecode，忽略的话脚本会使用avs目录下的timecode.txt，找不到就会报错。如要禁用输入timecode，指定--tc ""
 *  --bitrate-ratio *：2pass和1pass的码率比例，默认为1.0（即使用一样的码率）
+*  --priority [idle|below_normal|normal|above_normal|high]：指定x264进程优先级
 *  -- [参数]：在--后面的所有参数都会直接添加到x264命令行，例：
 
     encx264.py <....> -- --vf resize:640x480
+    
+### 自动更新
+
+运行以下命令，即可将脚本更新至最新稳定版：
+    encx264.py !update

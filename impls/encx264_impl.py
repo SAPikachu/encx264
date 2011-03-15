@@ -144,10 +144,12 @@ def encode_impl():
                                   creationflags = priority_value,
                                   universal_newlines = True)
             for l in p.stdout:
-                log.write(l)
                 if l.startswith("["):
+                    if log_progress:
+                        log.write(l)
                     print(l.strip().ljust(78),end='\r')
                 else:
+                    log.write(l)
                     print(l,end='')
                     if bitrate == -1:
                         m = re.search("kb\/s\:([0-9]+)",l)
@@ -204,10 +206,12 @@ def encode_impl():
 
                     
             for l in p.stdout:
-                log.write(l)
                 if l.startswith("["):
+                    if log_progress:
+                        log.write(l)
                     print(l.strip().ljust(78),end='\r')
                 else:
+                    log.write(l)
                     print(l,end='')
 
             print("")

@@ -33,15 +33,15 @@ def check_return_code(p):
 def encode_impl():
     parser = OptionParser()
     parser.add_option("--target")
-    parser.add_option("--inFile")
-    parser.add_option("--outFile")
+    parser.add_option("--infile", dest="inFile")
+    parser.add_option("--outfile", dest="outFile")
     parser.add_option("--crf", type="int")
     parser.add_option("--pass", type="int", default=1, dest="passN")
     parser.add_option("--bitrate", type="int", default=-1)
     parser.add_option("--sar")
     parser.add_option("--tc", default=None)
     parser.add_option("--ref", type="int")
-    parser.add_option("--inFile-2pass", dest="inFile_2pass")
+    parser.add_option("--infile-2pass", dest="inFile_2pass")
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
     parser.add_option("--priority")
@@ -52,6 +52,8 @@ def encode_impl():
         sys.argv = sys.argv[:sys.argv.index("--")]
     else:
         extra_args = ""
+
+    sys.argv = [x.lower() if x.startswith("-") else x for x in sys.argv]
 
     (opt, args) = parser.parse_args()
     

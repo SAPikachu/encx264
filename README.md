@@ -29,6 +29,7 @@ target的定义方法请参考encx264_targets.py内现有的target，注意花�
 *  --tc "xxxx.txt"：指定输入timecode，忽略的话脚本会使用avs目录下的timecode.txt，找不到就会报错。如要禁用输入timecode，指定--tc ""
 *  --bitrate-ratio *：2pass和1pass的码率比例，默认为1.0（即使用一样的码率）
 *  --priority [idle|below_normal|normal|above_normal|high]：指定x264进程优先级
+*  --inFile-2pass "xxxxx.avs"：2pass时使用另一个avs脚本
 *  -- [参数]：在--后面的所有参数都会直接添加到x264命令行，例：
 
     encx264.py <....> -- --vf resize:640x480

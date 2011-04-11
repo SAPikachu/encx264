@@ -41,6 +41,7 @@ def encode_impl():
     parser.add_option("--sar")
     parser.add_option("--tc", default=None)
     parser.add_option("--ref", type="int")
+    parser.add_option("--inFile-2pass", dest="inFile_2pass")
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
     parser.add_option("--priority")
@@ -80,6 +81,12 @@ def encode_impl():
 
     if not os.path.isfile(inFile):
         print("{0} doesn't exist!".format(inFile))
+        return
+
+    inFile_2pass = opt.inFile_2pass or inFile 
+
+    if not os.path.isfile(inFile_2pass):
+        print("{0} doesn't exist!".format(inFile_2pass))
         return
 
     if tc is None:
@@ -186,7 +193,7 @@ def encode_impl():
 
             bitrate = int(bitrate * opt.bitrate_ratio)
             
-            cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile}}"' \
+            cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile_2pass}}"' \
                       .format(x264_exec,
                               common_params,
                               common_params_pass2,

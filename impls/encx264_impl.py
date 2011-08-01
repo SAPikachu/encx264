@@ -120,9 +120,11 @@ def encode_impl():
 
     priority_value = priority_values[priority]
 
+    x264_exec = "x264_path" in params and params["x264_path"] or x264_path
+
     x264_exec = '"{0}"'.format(os.path.join(
                                 os.path.dirname(sys.argv[0]),
-                                x264_path))
+                                x264_exec))
 
 
     start = pass1time = datetime.now()

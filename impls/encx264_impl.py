@@ -42,6 +42,10 @@ def encode_impl():
     parser.add_option("--tc", default=None)
     parser.add_option("--ref", type="int")
     parser.add_option("--infile-2pass", dest="inFile_2pass")
+    parser.add_option("--1pass-only", dest="p1_only", action="store_true",
+                      default=False)
+    parser.add_option("--append-log", dest="append_log", action="store_true",
+                      default=False)
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
     parser.add_option("--priority")
@@ -73,6 +77,8 @@ def encode_impl():
     sar = opt.sar
     tc = opt.tc
     ref = opt.ref or params["default_ref"]
+    p1_only = opt.p1_only
+    append_log = opt.append_log
 
     if opt.bitrate_ratio == -1:
         opt.bitrate_ratio = params.get("bitrate_ratio", 1.0)
@@ -134,7 +140,7 @@ def encode_impl():
     print("Current time: " + str(start))
     print("")
 
-    with open(outFile + ".log", "w") as log:
+    with open(outFile + ".log", append_log and "a" or "w") as log:
         if passN <= 1:
             if os.path.isfile(statsFile):
                 os.remove(statsFile)
@@ -180,6 +186,8 @@ def encode_impl():
             print("")
             print("")
 
+        if p1_only:
+            return
 
         if "pass2" not in params:
             print("Encode completed.")

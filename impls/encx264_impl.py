@@ -4,6 +4,7 @@ from datetime import datetime
 import re
 import subprocess
 import sys
+from .utils import *
 
 __all__ = ["encode"]
 
@@ -30,7 +31,8 @@ def check_return_code(p):
         print("x264 exited with return code", p.returncode)
         sys.exit(p.returncode)
 
-def encode_impl():
+def parse_args(args=None):
+    args = args or sys.argv[1:]
     parser = OptionParser()
     parser.add_option("--target")
     parser.add_option("--infile", dest="inFile")
@@ -50,16 +52,12 @@ def encode_impl():
                       dest="bitrate_ratio")
     parser.add_option("--priority")
 
-    if "--" in sys.argv:
-        extra_args = ' '.join([(" " in x) and '"{0}"'.format(x) or x \
-                     for x in sys.argv[sys.argv.index("--")+1:]])
-        sys.argv = sys.argv[:sys.argv.index("--")]
-    else:
-        extra_args = ""
+    args = [x.lower() if x.startswith("-") else x for x in args]
+    (opt, extra_args) = parser.parse_args(args)
+    return (opt, extra_args)
 
-    sys.argv = [x.lower() if x.startswith("-") else x for x in sys.argv]
-
-    (opt, args) = parser.parse_args()
+def encode_impl(raw_args=None, print=print):
+    (opt, args) = parse_args(raw_args)
     
     target = opt.target or args.pop(0)
     
@@ -80,6 +78,8 @@ def encode_impl():
     p1_only = opt.p1_only
     append_log = opt.append_log
 
+    extra_args = gen_cmd_line(args)
+    
     if opt.bitrate_ratio == -1:
         opt.bitrate_ratio = params.get("bitrate_ratio", 1.0)
 
@@ -152,9 +152,9 @@ def encode_impl():
                               params["pass1"])
             cmdline = cmdline.format(**locals())
 
-            print("First pass command line: ", cmdline, file=log)
+            print("First pass command line:", cmdline, file=log)
             print("", file=log)
-            print("First pass command line: ", cmdline)
+            print("First pass command line:", cmdline)
             print("")
 
             p =  subprocess.Popen(cmdline,
@@ -215,9 +215,9 @@ def encode_impl():
                               params["pass2"])
             cmdline = cmdline.format(**locals())
 
-            print("Second pass command line: ", cmdline, file=log)
+            print("Second pass command line:", cmdline, file=log)
             print("", file=log)
-            print("Second pass command line: ", cmdline)
+            print("Second pass command line:", cmdline)
             print("")
 
             
@@ -248,9 +248,9 @@ def encode_impl():
             print("")
             print("")
 
-def encode():
+def encode(args=None, print=print):
     try:
-        encode_impl()
+        encode_impl(args, print)
     except KeyboardInterrupt:
         print("")
         print("")

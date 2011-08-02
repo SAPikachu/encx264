@@ -154,6 +154,8 @@ def encode_impl():
 
             print("First pass command line: ", cmdline, file=log)
             print("", file=log)
+            print("First pass command line: ", cmdline)
+            print("")
 
             p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
@@ -215,6 +217,8 @@ def encode_impl():
 
             print("Second pass command line: ", cmdline, file=log)
             print("", file=log)
+            print("Second pass command line: ", cmdline)
+            print("")
 
             
             p =  subprocess.Popen(cmdline,

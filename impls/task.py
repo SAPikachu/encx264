@@ -39,14 +39,18 @@ def task_add_internal(params, slot=1, depends=None):
     return t
     
 def task_add(params):
-    if not get_params(params):
+    p = get_params(params)
+    if not p:
         # invalid parameter
         return 1
-    
-    t1 = task_add_internal(params + ["--1pass-only"], 1)
-    task_add_internal(params + ["--pass", "2", "--append-log"],
-                      2,
-                      depends=t1.id)
+
+    if "pass2" in p.params:
+        t1 = task_add_internal(params + ["--1pass-only"], 1)
+        task_add_internal(params + ["--pass", "2", "--append-log"],
+                          2,
+                          depends=t1.id)
+    else:
+        task_add_internal(params, 2)
 
 def task_remove(ids):
     ids = list(ids)
@@ -74,10 +78,10 @@ def get_task_by_uuid(id):
 
 def print_status(threads):
     os.system("cls")
-    print("Tasks:")
     task_list()
     print("")
-
+    
+    print("Processes:")
     for i in range(len(threads)):
         print("[{0}]".format(i), threads[i][1].msg)
 
@@ -94,6 +98,7 @@ def task_run_impl(self, global_state, tasks):
                 raise KeyboardInterrupt()
 
     def int_handler():
+        # re-raise so that the outer handler can catch it
         raise KeyboardInterrupt()
 
     try:
@@ -105,7 +110,7 @@ def task_run_impl(self, global_state, tasks):
             
             with global_state.lock:
                 if not any([t.state == task_states.waiting for t in tasks]):
-                    self.msg = ""
+                    self.msg = "No more tasks, thread exited"
                     return
 
                 for i in range(1, global_state.slots + 1):
@@ -191,6 +196,10 @@ def task_run(max_slots=2):
                 sys.exit(state.exit_code)
                 
             sleep(1)
+
+        print_status(threads)
+        print("")
+        print("All tasks are completed")
             
     except KeyboardInterrupt:
         task_save()
@@ -223,6 +232,7 @@ def task_do_command():
         "add": lambda: task_add(args),
         "remove": lambda: task_remove([int(x) for x in args]),
         "clear": task_clear,
+        "reset": lambda: task_reset([int(x) for x in args]),
         "run": lambda: task_run(*[int(x) for x in args])
     }
     if command not in commands:

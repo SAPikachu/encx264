@@ -7,4 +7,5 @@ class AttrDict(dict):
     __init__ = dict.__init__
 
 def gen_cmd_line(args):
-    return ' '.join([' ' in x and ('"{0}"'.format(x)) or x for x in args])
+    return ' '.join([(' ' in x or x == "") and \
+                     ('"{0}"'.format(x)) or x for x in args])

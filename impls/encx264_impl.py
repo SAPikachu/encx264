@@ -264,13 +264,16 @@ def encode_impl(raw_args=None, print=print):
             print("")
             print("")
 
-def encode(args=None, print=print):
+def encode(args=None, print=print, int_handler=None):
     try:
         return encode_impl(args, print)
     except KeyboardInterrupt:
         print("")
         print("")
         print("Encode interrupted by user.")
+        if int_handler:
+            return int_handler()
+        
         return 1
         
 if __name__ == "__main__":

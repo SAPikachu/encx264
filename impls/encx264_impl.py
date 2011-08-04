@@ -138,8 +138,13 @@ def get_params(raw_args=None, print=print, working_dir=None):
 
     x264_exec = "x264_path" in params and params["x264_path"] or x264_path
 
+    script_dir = sys.path[0]
+    if not os.path.isdir(script_dir):
+        # frozen
+        script_dir = os.path.dirname(script_dir)
+        
     x264_exec = os.path.abspath(os.path.join(
-                                os.path.dirname(sys.argv[0]),
+                                script_dir,
                                 x264_exec))
 
     if not os.path.isfile(x264_exec):

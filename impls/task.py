@@ -8,6 +8,7 @@ from threading import Thread, Lock, Event
 from uuid import uuid4
 from time import sleep
 from .console import clear as console_clear
+from io import StringIO
 
 task_states = AttrDict({(k, k) for k in ["waiting",
                                          "running",
@@ -72,7 +73,7 @@ def task_reset(ids):
     for id in ids:
         tasks[id].state = task_states.waiting
 
-def task_list():
+def task_list(print=print):
     for i in range(len(tasks)):
         task = tasks[i]
         print("[{0}] {1}".format(i,
@@ -89,19 +90,22 @@ def get_task_by_uuid(id):
         return l[0]
 
 def print_status(threads):
-    console_clear()
-    task_list()
+    buffer = StringIO()
+    task_list(lambda *t: print(*t, file=buffer))
 
     running_tasks_title_printed = False
     for i in range(len(threads)):
         msg = threads[i][1].msg
         if msg:
             if not running_tasks_title_printed:
-                print("")
-                print("Running tasks:")
+                print("", file=buffer)
+                print("Running tasks:", file=buffer)
                 running_tasks_title_printed = True
                 
-            print(msg)
+            print(msg, file=buffer)
+
+    console_clear()
+    print(buffer.getvalue())
 
 def task_run_impl(self, global_state, tasks):
     task_tag = ' '

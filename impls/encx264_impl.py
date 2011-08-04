@@ -138,10 +138,15 @@ def get_params(raw_args=None, print=print, working_dir=None):
 
     x264_exec = "x264_path" in params and params["x264_path"] or x264_path
 
-    x264_exec = '"{0}"'.format(os.path.abspath(os.path.join(
+    x264_exec = os.path.abspath(os.path.join(
                                 os.path.dirname(sys.argv[0]),
-                                x264_exec)))
+                                x264_exec))
 
+    if not os.path.isfile(x264_exec):
+        print("Can't find x264 executable", x264_exec)
+        return None
+
+    x264_exec = '"{0}"'.format(x264_exec)
 
     ret = AttrDict(locals())
     ret.common_params = common_params

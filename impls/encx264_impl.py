@@ -4,6 +4,7 @@ from datetime import datetime
 import re
 import subprocess
 import sys
+from .utils import gen_cmd_line, AttrDict
 
 __all__ = ["encode"]
 
@@ -28,9 +29,11 @@ def check_return_code(p):
     p.communicate()
     if p.returncode != 0:
         print("x264 exited with return code", p.returncode)
-        sys.exit(p.returncode)
 
-def encode_impl():
+    return p.returncode
+
+def parse_args(args=None):
+    args = args or sys.argv[1:]
     parser = OptionParser()
     parser.add_option("--target")
     parser.add_option("--infile", dest="inFile")
@@ -42,26 +45,26 @@ def encode_impl():
     parser.add_option("--tc", default=None)
     parser.add_option("--ref", type="int")
     parser.add_option("--infile-2pass", dest="inFile_2pass")
+    parser.add_option("--1pass-only", dest="p1_only", action="store_true",
+                      default=False)
+    parser.add_option("--append-log", dest="append_log", action="store_true",
+                      default=False)
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
     parser.add_option("--priority")
 
-    if "--" in sys.argv:
-        extra_args = ' '.join([(" " in x) and '"{0}"'.format(x) or x \
-                     for x in sys.argv[sys.argv.index("--")+1:]])
-        sys.argv = sys.argv[:sys.argv.index("--")]
-    else:
-        extra_args = ""
+    args = [x.lower() if x.startswith("-") else x for x in args]
+    (opt, extra_args) = parser.parse_args(args)
+    return (opt, extra_args)
 
-    sys.argv = [x.lower() if x.startswith("-") else x for x in sys.argv]
-
-    (opt, args) = parser.parse_args()
+def get_params(raw_args=None, print=print, working_dir=None):
+    (opt, args) = parse_args(raw_args)
     
     target = opt.target or args.pop(0)
     
     if target not in encode_targets:
         print("Invalid target {0}!".format(target))
-        return
+        return None
     
     params = encode_targets[target]
 
@@ -73,40 +76,53 @@ def encode_impl():
     sar = opt.sar
     tc = opt.tc
     ref = opt.ref or params["default_ref"]
+    p1_only = opt.p1_only
+    append_log = opt.append_log
 
+    extra_args = gen_cmd_line(args)
+    
     if opt.bitrate_ratio == -1:
         opt.bitrate_ratio = params.get("bitrate_ratio", 1.0)
 
     if inFile is None:
         print("You have not specified input file!")
-        return
-
-    if not os.path.isfile(inFile):
-        print("{0} doesn't exist!".format(inFile))
-        return
-
-    inFile_2pass = opt.inFile_2pass or inFile 
-
-    if not os.path.isfile(inFile_2pass):
-        print("{0} doesn't exist!".format(inFile_2pass))
-        return
-
-    if tc is None:
-        tc = os.path.join(os.path.dirname(inFile), "timecode.txt")
-
-    if tc:
-        if not os.path.isfile(tc):
-            print("Timecode file {0} doesn't exist!".format(tc))
-            return
-        tc = ' --tcfile-in "{0}"'.format(tc)
+        return None
 
     if not outFile:
         outFile = os.path.splitext(inFile)[0] + ".mp4"
 
+    inFile_2pass = opt.inFile_2pass or inFile 
+
+    if tc is None:
+        tc = os.path.join(os.path.dirname(inFile), "timecode.txt")
+
+    if working_dir:
+        inFile = os.path.abspath(os.path.join(working_dir, inFile))
+        inFile_2pass = os.path.abspath(os.path.join(working_dir, inFile_2pass))
+        outFile = os.path.abspath(os.path.join(working_dir, outFile))
+        
+        if tc:
+            tc = os.path.abspath(os.path.join(working_dir, tc))
+
+    if not os.path.isfile(inFile):
+        print("{0} doesn't exist!".format(inFile))
+        return None
+
+    if not os.path.isfile(inFile_2pass):
+        print("{0} doesn't exist!".format(inFile_2pass))
+        return None
+
+    if tc:
+        if not os.path.isfile(tc):
+            print("Timecode file {0} doesn't exist!".format(tc))
+            return None
+
+        tc = ' --tcfile-in "{0}"'.format(tc)
+
     if not sar:
         if not "default_sar" in params:
             print("sar must be specified!")
-            return
+            return None
         sar = params["default_sar"]
 
     statsFile = outFile + ".x264_stats"
@@ -116,14 +132,40 @@ def encode_impl():
 
     if priority not in priority_values:
         print("Invalid priority:", priority)
-        return
+        return None
 
     priority_value = priority_values[priority]
 
-    x264_exec = '"{0}"'.format(os.path.join(
-                                os.path.dirname(sys.argv[0]),
-                                x264_path))
+    x264_exec = "x264_path" in params and params["x264_path"] or x264_path
 
+    script_dir = sys.path[0]
+    if not os.path.isdir(script_dir):
+        # frozen
+        script_dir = os.path.dirname(script_dir)
+        
+    x264_exec = os.path.abspath(os.path.join(
+                                script_dir,
+                                x264_exec))
+
+    if not os.path.isfile(x264_exec):
+        print("Can't find x264 executable", x264_exec)
+        return None
+
+    x264_exec = '"{0}"'.format(x264_exec)
+
+    ret = AttrDict(locals())
+    ret.common_params = common_params
+    ret.common_params_pass1 = common_params_pass1
+    ret.common_params_pass2 = common_params_pass2
+
+    return ret
+
+
+def encode_impl(raw_args=None, print=print, working_dir=None):
+    args = get_params(raw_args, print, working_dir)
+
+    if not args:
+        return 1
 
     start = pass1time = datetime.now()
 
@@ -132,44 +174,51 @@ def encode_impl():
     print("Current time: " + str(start))
     print("")
 
-    with open(outFile + ".log", "w") as log:
-        if passN <= 1:
-            if os.path.isfile(statsFile):
-                os.remove(statsFile)
-            cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile}}"' \
-                      .format(x264_exec,
-                              common_params,
-                              common_params_pass1,
-                              params["common"],
-                              params["pass1"])
-            cmdline = cmdline.format(**locals())
+    with open(args.outFile + ".log",
+              args.append_log and "a" or "w",
+              buffering=1) as log:
+        if args.passN <= 1:
+            if os.path.isfile(args.statsFile):
+                os.remove(args.statsFile)
+                
+            cmdline = ('{x264_exec} {common_params} {common_params_pass1} ' + \
+                       '{params[common]} {params[pass1]} ' + \
+                       '{extra_args} "{inFile}"') \
+                      .format(**args).format(**args)
+            # format 2 times to substitute parameters in target
 
-            print("First pass command line: ", cmdline, file=log)
+            print("First pass command line:", cmdline, file=log)
             print("", file=log)
+            print("First pass command line:", cmdline)
+            print("")
 
             p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
                                   stderr = subprocess.STDOUT,
-                                  creationflags = priority_value,
+                                  cwd = working_dir,
+                                  creationflags = args.priority_value,
                                   universal_newlines = True)
             for l in p.stdout:
                 if l.startswith("["):
                     if log_progress:
                         log.write(l)
+                        
                     print(l.strip().ljust(78),end='\r')
                 else:
                     log.write(l)
                     print(l,end='')
-                    if bitrate == -1:
+                    if args.bitrate == -1:
                         m = re.search("kb\/s\:([0-9]+)",l)
                         if m:
-                            bitrate = int(m.group(1))
-                            with open(outFile + ".bitrate.txt","w") as f:
-                                f.write(str(bitrate))
+                            args.bitrate = int(m.group(1))
+                            with open(args.outFile + ".bitrate.txt","w") as f:
+                                f.write(str(args.bitrate))
 
             print("")
             print("")
-            check_return_code(p)
+            return_code = check_return_code(p)
+            if return_code:
+                return return_code
 
             pass1time = datetime.now()
             print("1st pass completed.")
@@ -178,40 +227,42 @@ def encode_impl():
             print("")
             print("")
 
+        if args.p1_only:
+            return
 
-        if "pass2" not in params:
+        if "pass2" not in args.params:
             print("Encode completed.")
         else:
             log.write("\n")
             log.write("---------------------------------------------\n")
             log.write("\n")
-            if bitrate == -1:
-                if os.path.isfile(outFile + ".bitrate.txt"):
-                    with open(outFile + ".bitrate.txt","r") as f:
-                        bitrate = int(f.read().strip())
+            if args.bitrate == -1:
+                if os.path.isfile(args.outFile + ".bitrate.txt"):
+                    with open(args.outFile + ".bitrate.txt","r") as f:
+                        args.bitrate = int(f.read().strip())
                 else:
                     print("Bitrate is unknown!")
-                    return
+                    return 1
 
-            bitrate = int(bitrate * opt.bitrate_ratio)
+            args.bitrate = int(args.bitrate * args.opt.bitrate_ratio)
             
-            cmdline = '{0} {1} {2} {3} {4} {{extra_args}} "{{inFile_2pass}}"' \
-                      .format(x264_exec,
-                              common_params,
-                              common_params_pass2,
-                              params["common"],
-                              params["pass2"])
-            cmdline = cmdline.format(**locals())
+            cmdline = ('{x264_exec} {common_params} {common_params_pass2} ' + \
+                       '{params[common]} {params[pass2]} ' + \
+                       '{extra_args} "{inFile_2pass}"') \
+                      .format(**args).format(**args)
 
-            print("Second pass command line: ", cmdline, file=log)
+            print("Second pass command line:", cmdline, file=log)
             print("", file=log)
+            print("Second pass command line:", cmdline)
+            print("")
 
             
             p =  subprocess.Popen(cmdline,
-                                      stdout = subprocess.PIPE,
-                                      stderr = subprocess.STDOUT,
-                                      creationflags = priority_value,
-                                      universal_newlines = True)
+                                  stdout = subprocess.PIPE,
+                                  stderr = subprocess.STDOUT,
+                                  cwd = working_dir,
+                                  creationflags = args.priority_value,
+                                  universal_newlines = True)
 
                     
             for l in p.stdout:
@@ -225,7 +276,10 @@ def encode_impl():
 
             print("")
             print("")
-            check_return_code(p)
+            return_code = check_return_code(p)
+            if return_code:
+                return return_code
+            
             pass2time = datetime.now()
             print("2nd pass completed.")
             print("Current time: " + str(pass2time))
@@ -234,13 +288,17 @@ def encode_impl():
             print("")
             print("")
 
-def encode():
+def encode(args=None, print=print, working_dir=None, int_handler=None):
     try:
-        encode_impl()
+        return encode_impl(args, print, working_dir=working_dir)
     except KeyboardInterrupt:
         print("")
         print("")
         print("Encode interrupted by user.")
+        if int_handler:
+            return int_handler()
+        
+        return 1
         
 if __name__ == "__main__":
     encode()

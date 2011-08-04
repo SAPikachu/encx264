@@ -1,0 +1,4 @@
+
+*.pyc
+/build
+/encx264_targets.py

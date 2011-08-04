@@ -192,7 +192,7 @@ def task_run_impl(self, global_state, tasks):
             else:
                 current_task.state = task_states.completed
 
-            # self.msg = ''
+            self.msg = ''
 
             task_save()
             with global_state.lock:

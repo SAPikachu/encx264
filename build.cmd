@@ -16,5 +16,5 @@ md build\impls
 copy impls build\impls
 copy encx264_targets.py.sample build
 del build\impls\*.pyc
-rd /s /q build\impls\__pycache__
+rd /s /q build\impls\__pycache__ 2> nul
 pause

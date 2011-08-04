@@ -174,7 +174,9 @@ def encode_impl(raw_args=None, print=print, working_dir=None):
     print("Current time: " + str(start))
     print("")
 
-    with open(args.outFile + ".log", args.append_log and "a" or "w") as log:
+    with open(args.outFile + ".log",
+              args.append_log and "a" or "w",
+              buffering=1) as log:
         if args.passN <= 1:
             if os.path.isfile(args.statsFile):
                 os.remove(args.statsFile)

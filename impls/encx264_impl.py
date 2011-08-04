@@ -57,7 +57,7 @@ def parse_args(args=None):
     (opt, extra_args) = parser.parse_args(args)
     return (opt, extra_args)
 
-def get_params(raw_args=None, print=print):
+def get_params(raw_args=None, print=print, working_dir=None):
     (opt, args) = parse_args(raw_args)
     
     target = opt.target or args.pop(0)
@@ -88,27 +88,36 @@ def get_params(raw_args=None, print=print):
         print("You have not specified input file!")
         return None
 
+    if not outFile:
+        outFile = os.path.splitext(inFile)[0] + ".mp4"
+
+    inFile_2pass = opt.inFile_2pass or inFile 
+
+    if tc is None:
+        tc = os.path.join(os.path.dirname(inFile), "timecode.txt")
+
+    if working_dir:
+        inFile = os.path.abspath(os.path.join(working_dir, inFile))
+        inFile_2pass = os.path.abspath(os.path.join(working_dir, inFile_2pass))
+        outFile = os.path.abspath(os.path.join(working_dir, outFile))
+        
+        if tc:
+            tc = os.path.abspath(os.path.join(working_dir, tc))
+
     if not os.path.isfile(inFile):
         print("{0} doesn't exist!".format(inFile))
         return None
-
-    inFile_2pass = opt.inFile_2pass or inFile 
 
     if not os.path.isfile(inFile_2pass):
         print("{0} doesn't exist!".format(inFile_2pass))
         return None
 
-    if tc is None:
-        tc = os.path.join(os.path.dirname(inFile), "timecode.txt")
-
     if tc:
         if not os.path.isfile(tc):
             print("Timecode file {0} doesn't exist!".format(tc))
             return None
-        tc = ' --tcfile-in "{0}"'.format(tc)
 
-    if not outFile:
-        outFile = os.path.splitext(inFile)[0] + ".mp4"
+        tc = ' --tcfile-in "{0}"'.format(tc)
 
     if not sar:
         if not "default_sar" in params:
@@ -129,9 +138,10 @@ def get_params(raw_args=None, print=print):
 
     x264_exec = "x264_path" in params and params["x264_path"] or x264_path
 
-    x264_exec = '"{0}"'.format(os.path.join(
+    x264_exec = '"{0}"'.format(os.path.abspath(os.path.join(
                                 os.path.dirname(sys.argv[0]),
-                                x264_exec))
+                                x264_exec)))
+
 
     ret = AttrDict(locals())
     ret.common_params = common_params
@@ -141,8 +151,8 @@ def get_params(raw_args=None, print=print):
     return ret
 
 
-def encode_impl(raw_args=None, print=print):
-    args = get_params(raw_args, print)
+def encode_impl(raw_args=None, print=print, working_dir=None):
+    args = get_params(raw_args, print, working_dir)
 
     if not args:
         return 1
@@ -173,6 +183,7 @@ def encode_impl(raw_args=None, print=print):
             p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
                                   stderr = subprocess.STDOUT,
+                                  cwd = working_dir,
                                   creationflags = args.priority_value,
                                   universal_newlines = True)
             for l in p.stdout:
@@ -237,6 +248,7 @@ def encode_impl(raw_args=None, print=print):
             p =  subprocess.Popen(cmdline,
                                   stdout = subprocess.PIPE,
                                   stderr = subprocess.STDOUT,
+                                  cwd = working_dir,
                                   creationflags = args.priority_value,
                                   universal_newlines = True)
 
@@ -264,7 +276,7 @@ def encode_impl(raw_args=None, print=print):
             print("")
             print("")
 
-def encode(args=None, print=print, int_handler=None):
+def encode(args=None, print=print, working_dir=None, int_handler=None):
     try:
         return encode_impl(args, print)
     except KeyboardInterrupt:

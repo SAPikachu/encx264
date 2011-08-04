@@ -18,6 +18,7 @@ class Task(AttrDict):
                  params=None,
                  slot=1,
                  depends=None,
+                 working_dir=None,
                  state=task_states.waiting,
                  data=None):
         self.id = str(uuid4())
@@ -25,6 +26,7 @@ class Task(AttrDict):
         self.slot = slot
         self.state = state
         self.depends = depends
+        self.working_dir = working_dir
         if data:
             self.update(data)
 
@@ -34,7 +36,7 @@ tasks = []
 default_task_file = os.path.expandvars("%TEMP%\\.encx264_task")
 
 def task_add_internal(params, slot=1, depends=None):
-    t = Task(params, slot=slot, depends=depends)
+    t = Task(params, slot=slot, depends=depends, working_dir=os.path.abspath("."))
     tasks.append(t)
     return t
     
@@ -45,12 +47,13 @@ def task_add(params):
         return 1
 
     if "pass2" in p.params:
-        t1 = task_add_internal(params + ["--1pass-only"], 1)
+        t1 = task_add_internal(params + ["--1pass-only"],
+                               p.params.get("slot_pass1", 1))
         task_add_internal(params + ["--pass", "2", "--append-log"],
-                          2,
+                          p.params.get("slot_pass2", 2),
                           depends=t1.id)
     else:
-        task_add_internal(params, 2)
+        task_add_internal(params, p.params.get("slot", 2))
 
 def task_remove(ids):
     ids = list(ids)
@@ -95,6 +98,8 @@ def task_run_impl(self, global_state, tasks):
                 self.msg = line
 
             if line.startswith("aborted at input"):
+                # x264's return code will be 0,
+                # so we must manually raise an error
                 raise KeyboardInterrupt()
 
     def int_handler():
@@ -143,12 +148,15 @@ def task_run_impl(self, global_state, tasks):
 
             task_save()
             if not current_task:
-                self.msg = "No available task"
+                self.msg = "No more slot for other tasks"
                 global_state.event.wait()
                 global_state.event.clear()
                 continue
 
-            ret = encode(current_task.params, print_hook, int_handler)
+            ret = encode(current_task.params,
+                         print_hook,
+                         working_dir=current_task.working_dir,
+                         int_handler=int_handler)
             if ret:
                 current_task.state = "error: code " + str(ret)
             else:
@@ -170,9 +178,6 @@ def task_run(max_slots=2):
     for t in tasks:
         if t.state == task_states.running:
             t.state = task_states.waiting
-        
-    print("Tasks:")
-    task_list()
 
     state = AttrDict()
     state.lock = Lock()
@@ -185,7 +190,8 @@ def task_run(max_slots=2):
     try:
         for i in range(max_slots):
             thread_state = AttrDict({"id": i, "msg": ""})
-            thread = Thread(target=task_run_impl, args=(thread_state, state, tasks))
+            thread = Thread(target=task_run_impl,
+                            args=(thread_state, state, tasks))
             thread.start()
             threads.append((thread, thread_state))
 
@@ -193,6 +199,7 @@ def task_run(max_slots=2):
             print_status(threads)
             if state.exit_code is not None:
                 state.event.set()
+                task_save()
                 sys.exit(state.exit_code)
                 
             sleep(1)
@@ -233,6 +240,7 @@ def task_do_command():
         "remove": lambda: task_remove([int(x) for x in args]),
         "clear": task_clear,
         "reset": lambda: task_reset([int(x) for x in args]),
+        "reset_all": lambda: task_reset(range(len(tasks))),
         "run": lambda: task_run(*[int(x) for x in args])
     }
     if command not in commands:

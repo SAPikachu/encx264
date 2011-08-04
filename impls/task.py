@@ -252,8 +252,12 @@ def task_save(task_file=default_task_file):
 def task_load(task_file=default_task_file):
     global tasks
     if os.path.isfile(task_file):
-        with open(task_file, "r") as f:
-            tasks = json.load(f, object_hook=lambda d:Task(data=d))
+        try:
+            with open(task_file, "r") as f:
+                tasks = json.load(f, object_hook=lambda d:Task(data=d))
+        except ValueError:
+            print("Warning: The task database is corrupted")
+            tasks = []
     else:
         tasks = []
 

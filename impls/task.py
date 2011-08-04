@@ -257,10 +257,29 @@ def task_load(task_file=default_task_file):
     else:
         tasks = []
 
+def task_help():
+    print("Usage:")
+    print(os.path.split(sys.argv[0])[-1], "!task <command> <arguments>")
+    print("")
+    print("Commands:")
+    print("list")
+    print("add <normal encode parameters>")
+    print("remove <one or more task IDs>")
+    print("clear")
+    print("reset <one or more task IDs>")
+    print("reset_all")
+    print("clear")
+    print("run [max slots] [output refresh rate]")
+
 def task_do_command():
+    if len(sys.argv) < 3:
+        task_help()
+        return
+    
     command = sys.argv[2]
     args = sys.argv[3:]
     commands = {
+        "help": task_help,
         "list": task_list,
         "add": lambda: task_add(args),
         "remove": lambda: task_remove([int(x) for x in args]),
@@ -271,6 +290,7 @@ def task_do_command():
     }
     if command not in commands:
         print("Invalid command", command)
+        task_help()
         return 1
 
     task_load()

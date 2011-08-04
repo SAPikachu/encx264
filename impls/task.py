@@ -136,6 +136,7 @@ def task_run_impl(self, global_state, tasks):
             with global_state.lock:
                 if not any([t.state == task_states.waiting for t in tasks]):
                     self.msg = ""
+                    global_state.event.set()
                     return
 
                 for i in range(1, global_state.slots + 1):
@@ -170,7 +171,9 @@ def task_run_impl(self, global_state, tasks):
             if not current_task:
                 self.msg = ""
                 global_state.event.wait()
-                global_state.event.clear()
+                with global_state.lock:
+                    global_state.event.clear()
+                
                 continue
 
             task_tag = str(tasks.index(current_task))
@@ -184,7 +187,8 @@ def task_run_impl(self, global_state, tasks):
                 raise KeyboardInterrupt
             
             if ret:
-                current_task.state = "error: code {0}, {1}".format(ret, self.msg)
+                current_task.state = "error: code {0}, {1}" \
+                                     .format(ret, self.msg)
             else:
                 current_task.state = task_states.completed
 

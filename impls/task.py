@@ -7,6 +7,7 @@ from .encx264_impl import encode, get_params
 from threading import Thread, Lock, Event
 from uuid import uuid4
 from time import sleep
+from .console import clear as console_clear
 
 task_states = AttrDict({(k, k) for k in ["waiting",
                                          "running",
@@ -88,7 +89,7 @@ def get_task_by_uuid(id):
         return l[0]
 
 def print_status(threads):
-    os.system("cls")
+    console_clear()
     task_list()
 
     running_tasks_title_printed = False

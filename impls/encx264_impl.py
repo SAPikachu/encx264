@@ -278,7 +278,7 @@ def encode_impl(raw_args=None, print=print, working_dir=None):
 
 def encode(args=None, print=print, working_dir=None, int_handler=None):
     try:
-        return encode_impl(args, print)
+        return encode_impl(args, print, working_dir=working_dir)
     except KeyboardInterrupt:
         print("")
         print("")

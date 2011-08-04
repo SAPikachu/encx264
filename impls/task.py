@@ -47,11 +47,17 @@ def task_add(params):
         return 1
 
     if "pass2" in p.params:
-        t1 = task_add_internal(params + ["--1pass-only"],
-                               p.params.get("slot_pass1", 1))
-        task_add_internal(params + ["--pass", "2", "--append-log"],
-                          p.params.get("slot_pass2", 2),
-                          depends=t1.id)
+        if "--pass" not in params:
+            t1 = task_add_internal(params + ["--1pass-only"],
+                                   p.params.get("slot_pass1", 1))
+            task_add_internal(params + ["--pass", "2", "--append-log"],
+                              p.params.get("slot_pass2", 2),
+                              depends=t1.id)
+        else:
+            task_add_internal(params,
+                              p.params.get(
+                                  "slot_pass" + str(p.passN),
+                                  p.passN))
     else:
         task_add_internal(params, p.params.get("slot", 2))
 
@@ -67,9 +73,11 @@ def task_reset(ids):
 
 def task_list():
     for i in range(len(tasks)):
-        print("[{0}] ({1}) {2}".format(i,
-                                       tasks[i].state,
-                                       gen_cmd_line(tasks[i].params)))
+        task = tasks[i]
+        print("[{0}] {1}".format(i,
+                                 gen_cmd_line(task.params)))
+        print("    ({0}) slot={1},dir={2}" \
+              .format(task.state, task.slot, task.working_dir))
 
 def task_clear():
     tasks[:] = []
@@ -82,20 +90,27 @@ def get_task_by_uuid(id):
 def print_status(threads):
     os.system("cls")
     task_list()
-    print("")
-    
-    print("Processes:")
+
+    running_tasks_title_printed = False
     for i in range(len(threads)):
-        print("[{0}]".format(i), threads[i][1].msg)
+        msg = threads[i][1].msg
+        if msg:
+            if not running_tasks_title_printed:
+                print("")
+                print("Running tasks:")
+                running_tasks_title_printed = True
+                
+            print(msg)
 
 def task_run_impl(self, global_state, tasks):
+    task_tag = ' '
     def print_hook(*args, **kwargs):
         if "file" in kwargs:
             print(*args, **kwargs)
         else:
             line = ' '.join(args).strip()
             if line:
-                self.msg = line
+                self.msg = '[{0}] {1}'.format(task_tag, line)
 
             if line.startswith("aborted at input"):
                 # x264's return code will be 0,
@@ -115,7 +130,7 @@ def task_run_impl(self, global_state, tasks):
             
             with global_state.lock:
                 if not any([t.state == task_states.waiting for t in tasks]):
-                    self.msg = "No more tasks, thread exited"
+                    self.msg = ""
                     return
 
                 for i in range(1, global_state.slots + 1):
@@ -148,19 +163,27 @@ def task_run_impl(self, global_state, tasks):
 
             task_save()
             if not current_task:
-                self.msg = "No more slot for other tasks"
+                self.msg = ""
                 global_state.event.wait()
                 global_state.event.clear()
                 continue
 
+            task_tag = str(tasks.index(current_task))
             ret = encode(current_task.params,
                          print_hook,
                          working_dir=current_task.working_dir,
                          int_handler=int_handler)
+
+            if ret == -1073741510:
+                # STATUS_CONTROL_C_EXIT
+                raise KeyboardInterrupt
+            
             if ret:
-                current_task.state = "error: code " + str(ret)
+                current_task.state = "error: code {0}, {1}".format(ret, self.msg)
             else:
                 current_task.state = task_states.completed
+
+            # self.msg = ''
 
             task_save()
             with global_state.lock:
@@ -172,9 +195,12 @@ def task_run_impl(self, global_state, tasks):
         print("Interrupted by user.")
         global_state.exit_code = 1
         return
+    except:
+        self.msg = str(sys.exc_info())
+        raise
         
     
-def task_run(max_slots=2):
+def task_run(max_slots=2, refresh_rate=1):
     for t in tasks:
         if t.state == task_states.running:
             t.state = task_states.waiting
@@ -202,7 +228,7 @@ def task_run(max_slots=2):
                 task_save()
                 sys.exit(state.exit_code)
                 
-            sleep(1)
+            sleep(refresh_rate)
 
         print_status(threads)
         print("")
@@ -241,7 +267,7 @@ def task_do_command():
         "clear": task_clear,
         "reset": lambda: task_reset([int(x) for x in args]),
         "reset_all": lambda: task_reset(range(len(tasks))),
-        "run": lambda: task_run(*[int(x) for x in args])
+        "run": lambda: eval('task_run(' + ','.join(args) + ')')
     }
     if command not in commands:
         print("Invalid command", command)

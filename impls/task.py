@@ -50,9 +50,9 @@ def task_add(params):
 
     if "pass2" in p.params:
         if "--pass" not in params:
-            t1 = task_add_internal(params + ["--1pass-only"],
+            t1 = task_add_internal(["--1pass-only"] + params,
                                    p.params.get("slot_pass1", 1))
-            task_add_internal(params + ["--pass", "2", "--append-log"],
+            task_add_internal(["--pass", "2", "--append-log"] + params,
                               p.params.get("slot_pass2", 2),
                               depends=t1.id)
         else:

@@ -161,7 +161,10 @@ def get_params(raw_args=None, print=print, working_dir=None):
     return ret
 
 
-def encode_impl(raw_args=None, print=print, working_dir=None):
+def encode_impl(raw_args=None,
+                print=print,
+                working_dir=None,
+                Popen=subprocess.Popen):
     args = get_params(raw_args, print, working_dir)
 
     if not args:
@@ -192,12 +195,12 @@ def encode_impl(raw_args=None, print=print, working_dir=None):
             print("First pass command line:", cmdline)
             print("")
 
-            p =  subprocess.Popen(cmdline,
-                                  stdout = subprocess.PIPE,
-                                  stderr = subprocess.STDOUT,
-                                  cwd = working_dir,
-                                  creationflags = args.priority_value,
-                                  universal_newlines = True)
+            p =  Popen(cmdline,
+                      stdout = subprocess.PIPE,
+                      stderr = subprocess.STDOUT,
+                      cwd = working_dir,
+                      creationflags = args.priority_value,
+                      universal_newlines = True)
             for l in p.stdout:
                 if l.startswith("["):
                     if log_progress:
@@ -257,12 +260,12 @@ def encode_impl(raw_args=None, print=print, working_dir=None):
             print("")
 
             
-            p =  subprocess.Popen(cmdline,
-                                  stdout = subprocess.PIPE,
-                                  stderr = subprocess.STDOUT,
-                                  cwd = working_dir,
-                                  creationflags = args.priority_value,
-                                  universal_newlines = True)
+            p =  Popen(cmdline,
+                      stdout = subprocess.PIPE,
+                      stderr = subprocess.STDOUT,
+                      cwd = working_dir,
+                      creationflags = args.priority_value,
+                      universal_newlines = True)
 
                     
             for l in p.stdout:
@@ -288,9 +291,13 @@ def encode_impl(raw_args=None, print=print, working_dir=None):
             print("")
             print("")
 
-def encode(args=None, print=print, working_dir=None, int_handler=None):
+def encode(args=None,
+           print=print,
+           working_dir=None,
+           int_handler=None,
+           Popen=subprocess.Popen):
     try:
-        return encode_impl(args, print, working_dir=working_dir)
+        return encode_impl(args, print, working_dir=working_dir, Popen=Popen)
     except KeyboardInterrupt:
         print("")
         print("")

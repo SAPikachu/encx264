@@ -12,6 +12,7 @@ from .console import get_cursor_position, set_cursor_position, \
                      get_text_color, set_text_color, \
                      clear_line_remaining
 from io import StringIO
+import subprocess
 
 task_states = AttrDict({(k, k) for k in ["waiting",
                                          "running",
@@ -26,6 +27,13 @@ state_colors = {
                          c_colors.FOREGROUND_INTENSITY,
     task_states.completed: c_colors.FOREGROUND_GREEN,
 }
+
+# hack for fixing http://bugs.python.org/issue12739
+popen_lock = Lock()
+
+def popen_hook(*args, **kwargs):
+    with popen_lock:
+        return subprocess.Popen(*args, **kwargs)
 
 class Task(AttrDict):
     def __init__(self,
@@ -224,7 +232,8 @@ def task_run_impl(self, global_state, tasks):
             ret = encode(current_task.params,
                          print_hook,
                          working_dir=current_task.working_dir,
-                         int_handler=int_handler)
+                         int_handler=int_handler,
+                         Popen=popen_hook)
 
             if ret == -1073741510:
                 # STATUS_CONTROL_C_EXIT
@@ -283,7 +292,7 @@ def task_run(max_slots=2, refresh_rate=1):
                 
             sleep(refresh_rate)
 
-        print_status(threads)
+        print_status(threads, state)
         print("")
         print("All tasks are completed")
             

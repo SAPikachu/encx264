@@ -55,7 +55,8 @@ class Task(AttrDict):
 tasks = []
 
 
-default_task_file = os.path.expandvars("%TEMP%\\.encx264_task")
+default_task_file = os.getenv("ENCX264_TASK_FILE") or \
+                    os.path.expandvars("%TEMP%\\.encx264_task")
 
 def task_add_internal(params, slot=1, depends=None):
     t = Task(params, slot=slot, depends=depends, working_dir=os.path.abspath("."))

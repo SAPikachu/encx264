@@ -7,13 +7,33 @@ from .encx264_impl import encode, get_params
 from threading import Thread, Lock, Event
 from uuid import uuid4
 from time import sleep
-from .console import clear as console_clear
+from .console import clear as console_clear, colors as c_colors
+from .console import get_cursor_position, set_cursor_position, \
+                     get_text_color, set_text_color, \
+                     clear_line_remaining
 from io import StringIO
+import subprocess
 
 task_states = AttrDict({(k, k) for k in ["waiting",
                                          "running",
                                          "completed",
                                          "error"]})
+
+state_colors = {
+    "": c_colors.FOREGROUND_RED |
+        c_colors.FOREGROUND_INTENSITY, # error color
+    task_states.waiting: c_colors.FOREGROUND_GREY,
+    task_states.running: c_colors.FOREGROUND_GREY |
+                         c_colors.FOREGROUND_INTENSITY,
+    task_states.completed: c_colors.FOREGROUND_GREEN,
+}
+
+# hack for fixing http://bugs.python.org/issue12739
+popen_lock = Lock()
+
+def popen_hook(*args, **kwargs):
+    with popen_lock:
+        return subprocess.Popen(*args, **kwargs)
 
 class Task(AttrDict):
     def __init__(self,
@@ -74,12 +94,25 @@ def task_reset(ids):
         tasks[id].state = task_states.waiting
 
 def task_list(print=print):
+    old_color = get_text_color()
     for i in range(len(tasks)):
         task = tasks[i]
+        color = task.state in state_colors and \
+                state_colors[task.state] or \
+                state_colors[""]
+        set_text_color(color)
         print("[{0}] {1}".format(i,
                                  gen_cmd_line(task.params)))
-        print("    ({0}) slot={1},dir={2}" \
+        
+        set_text_color(c_colors.FOREGROUND_INTENSITY)
+        print("    (", end='')
+        set_text_color(color)
+        print(task.state, end='')
+        set_text_color(c_colors.FOREGROUND_INTENSITY)
+        print(") slot={1},dir={2}" \
               .format(task.state, task.slot, task.working_dir))
+        
+    set_text_color(old_color)
 
 def task_clear():
     tasks[:] = []
@@ -89,23 +122,42 @@ def get_task_by_uuid(id):
     if l:
         return l[0]
 
-def print_status(threads):
-    buffer = StringIO()
-    task_list(lambda *t: print(*t, file=buffer))
+def padded_print(*args, **kwargs):
+    if kwargs.get("end", "\n") == '':
+        print(*args, **kwargs)
+        return
+        
+    kwargs["end"] = ""
+    print(*args, **kwargs)
+    clear_line_remaining()
+
+def print_status(threads, state):
+    if "console_cleared" not in state:
+        console_clear()
+        state["console_cleared"] = True
+        
+    last_pos = get_cursor_position()
+    set_cursor_position(0, 0)
+        
+    task_list(padded_print)
 
     running_tasks_title_printed = False
     for i in range(len(threads)):
         msg = threads[i][1].msg
         if msg:
             if not running_tasks_title_printed:
-                print("", file=buffer)
-                print("Running tasks:", file=buffer)
+                padded_print("")
+                padded_print("Running tasks:")
                 running_tasks_title_printed = True
                 
-            print(msg, file=buffer)
+            padded_print(msg)
 
-    console_clear()
-    print(buffer.getvalue())
+    current_pos = get_cursor_position()
+    for i in range(last_pos[1] - current_pos[1]):
+        padded_print("")
+
+    set_cursor_position(*current_pos)
+
 
 def task_run_impl(self, global_state, tasks):
     task_tag = ' '
@@ -180,7 +232,8 @@ def task_run_impl(self, global_state, tasks):
             ret = encode(current_task.params,
                          print_hook,
                          working_dir=current_task.working_dir,
-                         int_handler=int_handler)
+                         int_handler=int_handler,
+                         Popen=popen_hook)
 
             if ret == -1073741510:
                 # STATUS_CONTROL_C_EXIT
@@ -231,7 +284,7 @@ def task_run(max_slots=2, refresh_rate=1):
             threads.append((thread, thread_state))
 
         while any([t[0].is_alive() for t in threads]):
-            print_status(threads)
+            print_status(threads, state)
             if state.exit_code is not None:
                 state.event.set()
                 task_save()
@@ -239,7 +292,7 @@ def task_run(max_slots=2, refresh_rate=1):
                 
             sleep(refresh_rate)
 
-        print_status(threads)
+        print_status(threads, state)
         print("")
         print("All tasks are completed")
             

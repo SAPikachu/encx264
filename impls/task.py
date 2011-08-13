@@ -14,6 +14,8 @@ from .console import get_cursor_position, set_cursor_position, \
 from io import StringIO
 import subprocess
 
+__all__ = ["task_do_command"]
+
 task_states = AttrDict({(k, k) for k in ["waiting",
                                          "running",
                                          "completed",
@@ -28,10 +30,16 @@ state_colors = {
     task_states.completed: c_colors.FOREGROUND_GREEN,
 }
 
-# hack for fixing http://bugs.python.org/issue12739
+
 popen_lock = Lock()
 
 def popen_hook(*args, **kwargs):
+    creation_flags = kwargs.get("creationflags", 0)
+    # DETACHED_PROCESS, prevent x264 from changing console title
+    creation_flags |= 0x8
+    kwargs["creationflags"] = creation_flags
+
+    # hack for fixing http://bugs.python.org/issue12739
     with popen_lock:
         return subprocess.Popen(*args, **kwargs)
 
@@ -52,8 +60,12 @@ class Task(AttrDict):
         if data:
             self.update(data)
 
+class MainThreadExiting(Exception):
+    pass
+
 tasks = []
 
+task_save_lock = Lock()
 
 default_task_file = os.getenv("ENCX264_TASK_FILE") or \
                     os.path.expandvars("%TEMP%\\.encx264_task")
@@ -162,7 +174,13 @@ def print_status(threads, state):
 
 def task_run_impl(self, global_state, tasks):
     task_tag = ' '
+    def check_global_exit_code():
+        if global_state.exit_code is not None:
+            global_state.event.set()
+            raise MainThreadExiting()
+            
     def print_hook(*args, **kwargs):
+        check_global_exit_code()
         if "file" in kwargs:
             print(*args, **kwargs)
         else:
@@ -182,9 +200,7 @@ def task_run_impl(self, global_state, tasks):
     try:
         while True:
             current_task = None
-            if global_state.exit_code is not None:
-                global_state.event.set()
-                return
+            check_global_exit_code()
             
             with global_state.lock:
                 if not any([t.state == task_states.waiting for t in tasks]):
@@ -258,6 +274,9 @@ def task_run_impl(self, global_state, tasks):
         print("Interrupted by user.")
         global_state.exit_code = 1
         return
+    except MainThreadExiting:
+        task_save()
+        return
     except:
         self.msg = str(sys.exc_info())
         raise
@@ -305,12 +324,13 @@ def task_run(max_slots=2, refresh_rate=1):
         sys.exit(1)
 
 def task_save(task_file=default_task_file):
-    if tasks:
-        with open(task_file, "w") as f:
-            json.dump(tasks, f)
-    else:
-        if os.path.isfile(task_file):
-            os.remove(task_file)
+    with task_save_lock:
+        if tasks:
+            with open(task_file, "w") as f:
+                json.dump(tasks, f)
+        else:
+            if os.path.isfile(task_file):
+                os.remove(task_file)
 
 def task_load(task_file=default_task_file):
     global tasks

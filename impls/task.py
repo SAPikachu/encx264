@@ -277,8 +277,8 @@ def task_run_impl(self, global_state, tasks):
     except MainThreadExiting:
         task_save()
         return
-    except:
-        self.msg = str(sys.exc_info())
+    except Exception as e:
+        self.msg = str(e)
         raise
         
     

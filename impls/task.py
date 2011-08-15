@@ -10,7 +10,7 @@ from time import sleep
 from .console import clear as console_clear, colors as c_colors
 from .console import get_cursor_position, set_cursor_position, \
                      get_text_color, set_text_color, \
-                     clear_line_remaining
+                     clear_line_remaining, set_title
 from io import StringIO
 import subprocess
 
@@ -154,9 +154,12 @@ def print_status(threads, state):
         
     task_list(padded_print)
 
+    title_msgs = []
+
     running_tasks_title_printed = False
     for i in range(len(threads)):
-        msg = threads[i][1].msg
+        thread_obj = threads[i][1]
+        msg = thread_obj.msg
         if msg:
             if not running_tasks_title_printed:
                 padded_print("")
@@ -165,12 +168,22 @@ def print_status(threads, state):
                 
             padded_print(msg)
 
+        if thread_obj.title_msg:
+            title_msgs.append(thread_obj.title_msg)
+
     current_pos = get_cursor_position()
     for i in range(last_pos[1] - current_pos[1]):
         padded_print("")
 
     set_cursor_position(*current_pos)
 
+    completed = len([t for t in tasks if t.state == task_states.completed])
+    new_title = "ENCX264 - {0} / {1} completed" \
+                .format(completed, len(tasks))
+
+    if title_msgs:
+        new_title += ' - ' + ' '.join(title_msgs)
+    set_title(new_title)
 
 def task_run_impl(self, global_state, tasks):
     task_tag = ' '
@@ -192,6 +205,12 @@ def task_run_impl(self, global_state, tasks):
                 # x264's return code will be 0,
                 # so we must manually raise an error
                 raise KeyboardInterrupt()
+
+            if line.startswith("["):
+                percentage = line[1:line.index(']')]
+                self.title_msg = '[{0}] {1}'.format(task_tag, percentage)
+            else:
+                self.title_msg = ''
 
     def int_handler():
         # re-raise so that the outer handler can catch it

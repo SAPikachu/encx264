@@ -3,7 +3,7 @@ import os
 import json
 import sys
 from .utils import gen_cmd_line, AttrDict
-from .encx264_impl import encode, get_params
+from .encx264_impl import encode, get_params, parse_encode_result_line
 from threading import Thread, Lock, Event
 from uuid import uuid4
 from time import sleep
@@ -22,8 +22,8 @@ task_states = AttrDict({(k, k) for k in ["waiting",
                                          "error"]})
 
 state_colors = {
-    "": c_colors.FOREGROUND_RED |
-        c_colors.FOREGROUND_INTENSITY, # error color
+    task_states.error: c_colors.FOREGROUND_RED |
+                       c_colors.FOREGROUND_INTENSITY,
     task_states.waiting: c_colors.FOREGROUND_GREY,
     task_states.running: c_colors.FOREGROUND_GREY |
                          c_colors.FOREGROUND_INTENSITY,
@@ -57,8 +57,19 @@ class Task(AttrDict):
         self.state = state
         self.depends = depends
         self.working_dir = working_dir
+        self.state_message = ''
         if data:
             self.update(data)
+
+    def set_state(self, state, message=''):
+        self.state = state
+        self.state_message = message
+
+    def get_state_display(self):
+        if self.state_message:
+            return '{0}: {1}'.format(self.state, self.state_message)
+        else:
+            return self.state
 
 class MainThreadExiting(Exception):
     pass
@@ -120,10 +131,11 @@ def task_list(print=print):
         set_text_color(c_colors.FOREGROUND_INTENSITY)
         print("    (", end='')
         set_text_color(color)
-        print(task.state, end='')
+        print(task.get_state_display(), end='')
         set_text_color(c_colors.FOREGROUND_INTENSITY)
-        print(") slot={1},dir={2}" \
-              .format(task.state, task.slot, task.working_dir))
+        print(") slot={slot},dir={dir}" \
+              .format(slot=task.slot, 
+                      dir=task.working_dir))
         
     set_text_color(old_color)
 
@@ -212,6 +224,10 @@ def task_run_impl(self, global_state, tasks):
             else:
                 self.title_msg = ''
 
+            result = parse_encode_result_line(line)
+            if result:
+                self.encode_result = result
+
     def int_handler():
         # re-raise so that the outer handler can catch it
         raise KeyboardInterrupt()
@@ -236,11 +252,12 @@ def task_run_impl(self, global_state, tasks):
                         if t.depends:
                             dep = get_task_by_uuid(t.depends)
                             if not dep:
-                                t.state = "error: dependency not found"
+                                t.set_state(task_states.error, 
+                                            "dependency not found")
                                 continue
 
-                            if dep.state.startswith("error"):
-                                t.state = dep.state
+                            if dep.state == task_states.error:
+                                t.set_state(dep.state, dep.state_message)
                                 global_state.event.set()
                                 continue
 
@@ -276,10 +293,16 @@ def task_run_impl(self, global_state, tasks):
                 raise KeyboardInterrupt
             
             if ret:
-                current_task.state = "error: code {0}, {1}" \
-                                     .format(ret, self.msg)
+                current_task.set_state(
+                        task_states.error, 
+                        "code {0}, {1}".format(ret, self.msg))
             else:
                 current_task.state = task_states.completed
+                if self.encode_result:
+                    current_task.state_message = \
+                        "{fps} fps, {bitrate} kbps" \
+                            .format(**self.encode_result)
+                    self.encode_result = None
 
             self.msg = ''
 

@@ -7,7 +7,7 @@ import sys
 from .utils import gen_cmd_line, AttrDict
 
 
-__all__ = ["encode"]
+__all__ = ["encode", "parse_encode_result_line"]
 
 from .encx264_defaults import *
 
@@ -161,6 +161,16 @@ def get_params(raw_args=None, print=print, working_dir=None):
 
     return ret
 
+def parse_encode_result_line(line):
+    pat = r"\s*encoded \d+ frames, ([\d\.]+) fps, ([\d\.]+) kb/s\s*"
+    m = re.match(pat, line)
+    if not m:
+        return None
+
+    return {
+        "fps": float(m.group(1)),
+        "bitrate": int(float(m.group(2))),
+    }
 
 def encode_impl(raw_args=None,
                 print=print,
@@ -214,9 +224,9 @@ def encode_impl(raw_args=None,
                         log.write(l)
                         print(l,end='')
                         if args.bitrate == -1:
-                            m = re.search("kb\/s\:([0-9]+)",l)
+                            m = parse_encode_result_line(l)
                             if m:
-                                args.bitrate = int(m.group(1))
+                                args.bitrate = m["bitrate"]
                                 with open(args.outFile + ".bitrate.txt","w") \
                                      as f:
                                     f.write(str(args.bitrate))

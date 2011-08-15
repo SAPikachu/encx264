@@ -6,7 +6,8 @@ import subprocess
 import sys
 from .utils import gen_cmd_line, AttrDict
 
-__all__ = ["encode"]
+
+__all__ = ["encode", "parse_encode_result_line"]
 
 from .encx264_defaults import *
 
@@ -160,6 +161,16 @@ def get_params(raw_args=None, print=print, working_dir=None):
 
     return ret
 
+def parse_encode_result_line(line):
+    pat = r"\s*encoded \d+ frames, ([\d\.]+) fps, ([\d\.]+) kb/s\s*"
+    m = re.match(pat, line)
+    if not m:
+        return None
+
+    return {
+        "fps": float(m.group(1)),
+        "bitrate": int(float(m.group(2))),
+    }
 
 def encode_impl(raw_args=None,
                 print=print,
@@ -201,21 +212,27 @@ def encode_impl(raw_args=None,
                       cwd = working_dir,
                       creationflags = args.priority_value,
                       universal_newlines = True)
-            for l in p.stdout:
-                if l.startswith("["):
-                    if log_progress:
+
+            try:
+                for l in p.stdout:
+                    if l.startswith("["):
+                        if log_progress:
+                            log.write(l)
+                            
+                        print(l.strip().ljust(78),end='\r')
+                    else:
                         log.write(l)
-                        
-                    print(l.strip().ljust(78),end='\r')
-                else:
-                    log.write(l)
-                    print(l,end='')
-                    if args.bitrate == -1:
-                        m = re.search("kb\/s\:([0-9]+)",l)
-                        if m:
-                            args.bitrate = int(m.group(1))
-                            with open(args.outFile + ".bitrate.txt","w") as f:
-                                f.write(str(args.bitrate))
+                        print(l,end='')
+                        if args.bitrate == -1:
+                            m = parse_encode_result_line(l)
+                            if m:
+                                args.bitrate = m["bitrate"]
+                                with open(args.outFile + ".bitrate.txt","w") \
+                                     as f:
+                                    f.write(str(args.bitrate))
+            except:
+                p.kill()
+                raise
 
             print("")
             print("")
@@ -267,15 +284,18 @@ def encode_impl(raw_args=None,
                       creationflags = args.priority_value,
                       universal_newlines = True)
 
-                    
-            for l in p.stdout:
-                if l.startswith("["):
-                    if log_progress:
+            try:
+                for l in p.stdout:
+                    if l.startswith("["):
+                        if log_progress:
+                            log.write(l)
+                        print(l.strip().ljust(78),end='\r')
+                    else:
                         log.write(l)
-                    print(l.strip().ljust(78),end='\r')
-                else:
-                    log.write(l)
-                    print(l,end='')
+                        print(l,end='')
+            except:
+                p.kill()
+                raise
 
             print("")
             print("")

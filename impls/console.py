@@ -59,26 +59,30 @@ class colors:
 stdout_handle = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
 SetConsoleTextAttribute = windll.kernel32.SetConsoleTextAttribute
 GetConsoleScreenBufferInfo = windll.kernel32.GetConsoleScreenBufferInfo
-FillConsoleOutputCharacterA = windll.kernel32.FillConsoleOutputCharacterA
+FillConsoleOutputCharacter = windll.kernel32.FillConsoleOutputCharacterW
 FillConsoleOutputAttribute = windll.kernel32.FillConsoleOutputAttribute
 SetConsoleCursorPosition = windll.kernel32.SetConsoleCursorPosition
+SetConsoleTitle = windll.kernel32.SetConsoleTitleW
 
 def clear():
     csbi = CONSOLE_SCREEN_BUFFER_INFO()
     GetConsoleScreenBufferInfo(stdout_handle, byref(csbi))
     top_left = COORD(0, 0)
     written = INT()
-    FillConsoleOutputCharacterA(stdout_handle,
-                                0x20,
-                                csbi.dwSize.X * csbi.dwSize.Y,
-                                top_left,
-                                byref(written))
+    FillConsoleOutputCharacter(stdout_handle,
+                               0x20,
+                               csbi.dwSize.X * csbi.dwSize.Y,
+                               top_left,
+                               byref(written))
     FillConsoleOutputAttribute(stdout_handle,
                                 colors.FOREGROUND_GREY,
                                 csbi.dwSize.X * csbi.dwSize.Y,
                                 top_left,
                                 byref(written))
     SetConsoleCursorPosition(stdout_handle, top_left)
+
+def set_title(title):
+    SetConsoleTitle(title and str(title) or '')
 
 def get_cursor_position():
     csbi = CONSOLE_SCREEN_BUFFER_INFO()

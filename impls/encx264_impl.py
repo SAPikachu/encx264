@@ -48,6 +48,9 @@ def parse_args(args=None):
     parser.add_option("--infile-2pass", dest="inFile_2pass")
     parser.add_option("--1pass-only", dest="p1_only", action="store_true",
                       default=False)
+    parser.add_option("--1pass-same-extra-args", 
+                      dest="p1_same_extra_args", action="store_true", 
+                      default=False)
     parser.add_option("--append-log", dest="append_log", action="store_true",
                       default=False)
     parser.add_option("--bitrate-ratio", type="float", default=-1,
@@ -58,10 +61,25 @@ def parse_args(args=None):
     (opt, extra_args) = parser.parse_args(args)
     return (opt, extra_args)
 
+def pop_arg(args, number=False):
+    if len(args) == 0:
+        return None
+
+    if args[0].startswith("-"):
+        return None
+
+    if number:
+        try:
+            float(args[0])
+        except ValueError:
+            return None
+
+    return args.pop(0)
+
 def get_params(raw_args=None, print=print, working_dir=None):
     (opt, args) = parse_args(raw_args)
     
-    target = opt.target or args.pop(0)
+    target = opt.target or pop_arg(args)
     
     if target not in encode_targets:
         print("Invalid target {0}!".format(target))
@@ -69,9 +87,9 @@ def get_params(raw_args=None, print=print, working_dir=None):
     
     params = encode_targets[target]
 
-    inFile = opt.inFile or args.pop(0)
-    outFile = opt.outFile or (len(args) > 0 and args.pop(0) or None)
-    crf = opt.crf or (len(args) > 0 and args.pop(0) or None)
+    inFile = opt.inFile or pop_arg(args)
+    outFile = opt.outFile or pop_arg(args)
+    crf = opt.crf or pop_arg(args, number=True)
     passN = opt.passN
     bitrate = opt.bitrate
     sar = opt.sar
@@ -81,6 +99,10 @@ def get_params(raw_args=None, print=print, working_dir=None):
     append_log = opt.append_log
 
     extra_args = gen_cmd_line(args)
+    if opt.p1_same_extra_args:
+        extra_args_1pass = extra_args
+    else:
+        extra_args_1pass = gen_cmd_line(extra_args_for_1pass(args))
     
     if opt.bitrate_ratio == -1:
         opt.bitrate_ratio = params.get("bitrate_ratio", 1.0)
@@ -172,6 +194,17 @@ def parse_encode_result_line(line):
         "bitrate": int(float(m.group(2))),
     }
 
+def extra_args_for_1pass(args):
+    args = list(args)
+    excluded_args = ["--audiofile", "--acodec"]
+    for i in range(len(args)-1, -1, -1):
+        if args[i] in excluded_args:
+            # pop 2 times to remove the parameter key and value
+            args.pop(i)
+            args.pop(i)
+
+    return args
+
 def encode_impl(raw_args=None,
                 print=print,
                 working_dir=None,
@@ -197,7 +230,7 @@ def encode_impl(raw_args=None,
                 
             cmdline = ('{x264_exec} {common_params} {common_params_pass1} ' + \
                        '{params[common]} {params[pass1]} ' + \
-                       '{extra_args} "{inFile}"') \
+                       '{extra_args_1pass} "{inFile}"') \
                       .format(**args).format(**args)
             # format 2 times to substitute parameters in target
 

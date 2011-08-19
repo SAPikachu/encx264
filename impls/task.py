@@ -115,7 +115,7 @@ def task_remove(ids):
         
 def task_reset(ids):
     for id in ids:
-        tasks[id].state = task_states.waiting
+        tasks[id].set_state(task_states.waiting)
 
 def task_list(print=print):
     old_color = get_text_color()
@@ -265,7 +265,7 @@ def task_run_impl(self, global_state, tasks):
                                 continue
 
                         current_task = t
-                        t.state = task_states.running
+                        t.set_state(task_states.running)
                         global_state.slots -= i
                         break
 
@@ -297,7 +297,7 @@ def task_run_impl(self, global_state, tasks):
                         task_states.error, 
                         "code {0}, {1}".format(ret, self.msg))
             else:
-                current_task.state = task_states.completed
+                current_task.set_state(task_states.completed)
                 if self.encode_result:
                     current_task.state_message = \
                         "{fps} fps, {bitrate} kbps" \
@@ -327,7 +327,7 @@ def task_run_impl(self, global_state, tasks):
 def task_run(max_slots=2, refresh_rate=1):
     for t in tasks:
         if t.state == task_states.running:
-            t.state = task_states.waiting
+            t.set_state(task_states.waiting)
 
     state = AttrDict()
     state.lock = Lock()
@@ -339,7 +339,7 @@ def task_run(max_slots=2, refresh_rate=1):
 
     try:
         for i in range(max_slots):
-            thread_state = AttrDict({"id": i, "msg": ""})
+            thread_state = AttrDict({"id": i, "msg": "", "title_msg": ""})
             thread = Thread(target=task_run_impl,
                             args=(thread_state, state, tasks))
             thread.start()

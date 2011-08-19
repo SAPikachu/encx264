@@ -58,10 +58,25 @@ def parse_args(args=None):
     (opt, extra_args) = parser.parse_args(args)
     return (opt, extra_args)
 
+def pop_arg(args, number=False):
+    if len(args) == 0:
+        return None
+
+    if args[0].startswith("-"):
+        return None
+
+    if number:
+        try:
+            float(args[0])
+        except ValueError:
+            return None
+
+    return args.pop(0)
+
 def get_params(raw_args=None, print=print, working_dir=None):
     (opt, args) = parse_args(raw_args)
     
-    target = opt.target or args.pop(0)
+    target = opt.target or pop_arg(args)
     
     if target not in encode_targets:
         print("Invalid target {0}!".format(target))
@@ -69,9 +84,9 @@ def get_params(raw_args=None, print=print, working_dir=None):
     
     params = encode_targets[target]
 
-    inFile = opt.inFile or args.pop(0)
-    outFile = opt.outFile or (len(args) > 0 and args.pop(0) or None)
-    crf = opt.crf or (len(args) > 0 and args.pop(0) or None)
+    inFile = opt.inFile or pop_arg(args)
+    outFile = opt.outFile or pop_arg(args)
+    crf = opt.crf or pop_arg(args, number=True)
     passN = opt.passN
     bitrate = opt.bitrate
     sar = opt.sar

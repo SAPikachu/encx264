@@ -339,7 +339,7 @@ def task_run(max_slots=2, refresh_rate=1):
 
     try:
         for i in range(max_slots):
-            thread_state = AttrDict({"id": i, "msg": ""})
+            thread_state = AttrDict({"id": i, "msg": "", "title_msg": ""})
             thread = Thread(target=task_run_impl,
                             args=(thread_state, state, tasks))
             thread.start()

@@ -50,7 +50,7 @@ def parse_args(args=None):
                       default=False)
     parser.add_option("--1pass-same-extra-args", 
                       dest="p1_same_extra_args", action="store_true", 
-                      default=False)
+                      default=None)
     parser.add_option("--append-log", dest="append_log", action="store_true",
                       default=False)
     parser.add_option("--bitrate-ratio", type="float", default=-1,
@@ -99,6 +99,10 @@ def get_params(raw_args=None, print=print, working_dir=None):
     append_log = opt.append_log
 
     extra_args = gen_cmd_line(args)
+    
+    if opt.p1_same_extra_args is None:
+        opt.p1_same_extra_args = "pass2" in params
+
     if opt.p1_same_extra_args:
         extra_args_1pass = extra_args
     else:
@@ -196,12 +200,9 @@ def parse_encode_result_line(line):
 
 def extra_args_for_1pass(args):
     args = list(args)
-    excluded_args = ["--audiofile", "--acodec"]
     for i in range(len(args)-1, -1, -1):
-        if args[i] in excluded_args:
-            # pop 2 times to remove the parameter key and value
-            args.pop(i)
-            args.pop(i)
+        if args[i] == "--acodec":
+            args[i+1] = "none"
 
     return args
 

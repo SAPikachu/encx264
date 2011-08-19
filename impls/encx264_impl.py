@@ -196,12 +196,9 @@ def parse_encode_result_line(line):
 
 def extra_args_for_1pass(args):
     args = list(args)
-    excluded_args = ["--audiofile", "--acodec"]
     for i in range(len(args)-1, -1, -1):
-        if args[i] in excluded_args:
-            # pop 2 times to remove the parameter key and value
-            args.pop(i)
-            args.pop(i)
+        if args[i] == "--acodec":
+            args[i+1] = "none"
 
     return args
 

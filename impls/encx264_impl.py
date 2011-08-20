@@ -101,7 +101,7 @@ def get_params(raw_args=None, print=print, working_dir=None):
     extra_args = gen_cmd_line(args)
     
     if opt.p1_same_extra_args is None:
-        opt.p1_same_extra_args = "pass2" in params
+        opt.p1_same_extra_args = "pass2" not in params
 
     if opt.p1_same_extra_args:
         extra_args_1pass = extra_args

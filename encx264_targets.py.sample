@@ -53,7 +53,7 @@ encode_targets = {
         "default_ref": 7,
         "bitrate_ratio": 1.0,
         "x264_path": "x264_10.exe",
-        "common": "--profile high --input-depth 10 --level 4.1 --bframes 7 " + \
+        "common": "--input-depth 10 --level 4.1 --bframes 7 " + \
                   "--vbv-bufsize 50000 --vbv-maxrate 50000",
         'pass1': '--crf {crf}',
         "pass2": '--bitrate {bitrate} --partitions "p8x8,b8x8,i4x4,i8x8"',

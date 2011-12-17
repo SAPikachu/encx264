@@ -243,7 +243,13 @@ def task_run_impl(self, global_state, tasks):
                     global_state.event.set()
                     return
 
-                for i in range(1, global_state.slots + 1):
+                if global_state.running_tasks > 0:
+                    avail_slots = global_state.slots
+                else:
+                    # make sure at least 1 task can be run
+                    avail_slots = max([t.slot for t in tasks])
+
+                for i in range(1, avail_slots + 1):
                     avail_tasks = \
                         [x for x in tasks
                          if x.slot == i and x.state == task_states.waiting]
@@ -267,6 +273,7 @@ def task_run_impl(self, global_state, tasks):
                         current_task = t
                         t.set_state(task_states.running)
                         global_state.slots -= i
+                        global_state.running_tasks += 1
                         break
 
                     if current_task:
@@ -309,6 +316,7 @@ def task_run_impl(self, global_state, tasks):
             task_save()
             with global_state.lock:
                 global_state.slots += current_task.slot
+                global_state.running_tasks -= 1
                 global_state.event.set()
                 
     except KeyboardInterrupt:
@@ -334,12 +342,16 @@ def task_run(max_slots=2, refresh_rate=1):
     state.event = Event()
     state.slots = max_slots
     state.exit_code = None
+    state.running_tasks = 0
 
     threads = []
 
     try:
         for i in range(max_slots):
-            thread_state = AttrDict({"id": i, "msg": "", "title_msg": ""})
+            thread_state = AttrDict({
+                "id": i, "msg": "", 
+                "title_msg": "",
+            })
             thread = Thread(target=task_run_impl,
                             args=(thread_state, state, tasks))
             thread.start()

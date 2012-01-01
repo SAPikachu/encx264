@@ -26,13 +26,38 @@ target的定义方法请参考encx264_targets.py内现有的target，注意花�
 *  --sar：指定sar，注意如果target内没有default_sar，不在命令行指定sar会报错
 *  --ref *：指定ref，如忽略脚本会使用target指定的default_ref
 *  --pass 2：跳过1pass，如之前用脚本运行过1pass，码率会从记录文件内读取，否则需要用--bitrate指定码率
-*  --tc "xxxx.txt"：指定输入timecode，忽略的话脚本会使用avs目录下的timecode.txt，找不到就会报错。如要禁用输入timecode，指定--tc ""
+*  --tc "xxxx.txt"：指定输入timecode
 *  --bitrate-ratio *：2pass和1pass的码率比例，默认为1.0（即使用一样的码率）
 *  --priority [idle|below_normal|normal|above_normal|high]：指定x264进程优先级
 *  --inFile-2pass "xxxxx.avs"：2pass时使用另一个avs脚本
+*  --no-assoc-files：禁止脚本自动搜索qpfile/zones/timecode等关联文件
 *  -- [参数]：在--后面的所有参数都会直接添加到x264命令行，例：
 
     encx264.py <....> -- --vf resize:640x480
+
+### 关联文件
+
+脚本会按如下顺序自动搜索关联文件加入至参数：
+
+* qpfile:
+    - {源文件名}.qpfile
+    - {源文件名}.qpfile.txt
+
+* zones:
+    - {源文件名}.zones
+    - {源文件名}.zones.txt
+
+* timecode:
+    - （--tc参数具有最高优先级）
+    - {源文件名}.tcv2
+    - {源文件名}.tcv2.txt
+    - {源文件名}.tcv1
+    - {源文件名}.tcv1.txt
+    - {源文件名}.tc
+    - {源文件名}.tc.txt
+    - {源文件名}.timecode
+    - {源文件名}.timecode.txt
+    - timecode.txt
 
 ### 任务系统
 

@@ -56,6 +56,8 @@ def parse_args(args=None):
     parser.add_option("--bitrate-ratio", type="float", default=-1,
                       dest="bitrate_ratio")
     parser.add_option("--priority")
+    parser.add_option("--no-assoc-files", dest="assoc_files", 
+                      action="store_false", default=True)
 
     args = [x.lower() if x.startswith("-") else x for x in args]
     (opt, extra_args) = parser.parse_args(args)
@@ -76,6 +78,49 @@ def pop_arg(args, number=False):
 
     return args.pop(0)
 
+def find_assoc_file(
+    current_params, 
+    param_name, 
+    prefix, 
+    working_dir,
+    formats, 
+    filter=lambda current_params, x: x):
+    if re.search(r"(^| ){}( |$)".format(re.escape(param_name)), current_params):
+        return ""
+
+    working_dir = working_dir or ""
+    if working_dir:
+        working_dir = working_dir.strip('"') + "\\"
+
+    for f in formats:
+        file_name = f.format(prefix.strip('"'), working_dir=working_dir)
+        if os.path.isfile(file_name):
+            p = filter(current_params, file_name)
+            if p:
+                return ' {} "{}"'.format(param_name, p)
+
+    return ""
+
+def read_zones(_, file_name):
+    with open(file_name, "r") as f:
+        return f.read().strip()
+
+def find_assoc_files(current_params, prefix, working_dir, skip_tc):
+    ret = ""
+    ret += find_assoc_file(current_params, "--qpfile", prefix, working_dir,
+        ["{}.qpfile", "{}.qpfile.txt"])
+    ret += find_assoc_file(current_params, "--zones", prefix, working_dir,
+        ["{}.zones", "{}.zones.txt"], read_zones)
+
+    if not skip_tc:
+        ret += find_assoc_file(
+            current_params, "--tcfile-in", prefix, working_dir,
+            ["{}.tcv2", "{}.tcv2.txt", "{}.tcv1", "{}.tcv1.txt", 
+             "{}.tc", "{}.tc.txt", "{}.timecode", "{}.timecode.txt", 
+             "{working_dir}timecode.txt"])
+
+    return ret
+
 def get_params(raw_args=None, print=print, working_dir=None):
     (opt, args) = parse_args(raw_args)
     
@@ -85,7 +130,7 @@ def get_params(raw_args=None, print=print, working_dir=None):
         print("Invalid target {0}!".format(target))
         return None
     
-    params = encode_targets[target]
+    params = AttrDict(encode_targets[target])
 
     inFile = opt.inFile or pop_arg(args)
     outFile = opt.outFile or pop_arg(args)
@@ -93,10 +138,13 @@ def get_params(raw_args=None, print=print, working_dir=None):
     passN = opt.passN
     bitrate = opt.bitrate
     sar = opt.sar
-    tc = opt.tc
+    timecode_file = opt.tc
     ref = opt.ref or params["default_ref"]
     p1_only = opt.p1_only
     append_log = opt.append_log
+
+    # backward compatibility
+    tc = ""
 
     extra_args = gen_cmd_line(args)
     
@@ -120,16 +168,14 @@ def get_params(raw_args=None, print=print, working_dir=None):
 
     inFile_2pass = opt.inFile_2pass or inFile 
 
-    if tc is None:
-        tc = os.path.join(os.path.dirname(inFile), "timecode.txt")
-
     if working_dir:
         inFile = os.path.abspath(os.path.join(working_dir, inFile))
         inFile_2pass = os.path.abspath(os.path.join(working_dir, inFile_2pass))
         outFile = os.path.abspath(os.path.join(working_dir, outFile))
         
-        if tc:
-            tc = os.path.abspath(os.path.join(working_dir, tc))
+        if timecode_file:
+            timecode_file = os.path.abspath(
+                os.path.join(working_dir, timecode_file))
 
     if not os.path.isfile(inFile):
         print("{0} doesn't exist!".format(inFile))
@@ -139,12 +185,12 @@ def get_params(raw_args=None, print=print, working_dir=None):
         print("{0} doesn't exist!".format(inFile_2pass))
         return None
 
-    if tc:
-        if not os.path.isfile(tc):
-            print("Timecode file {0} doesn't exist!".format(tc))
+    if timecode_file:
+        if not os.path.isfile(timecode_file):
+            print("Timecode file {0} doesn't exist!".format(timecode_file))
             return None
 
-        tc = ' --tcfile-in "{0}"'.format(tc)
+        params.common += ' --tcfile-in "{0}"'.format(timecode_file)
 
     if not sar:
         if not "default_sar" in params:
@@ -184,6 +230,24 @@ def get_params(raw_args=None, print=print, working_dir=None):
     ret.common_params = common_params
     ret.common_params_pass1 = common_params_pass1
     ret.common_params_pass2 = common_params_pass2
+
+    if opt.assoc_files:
+        params.pass1 += find_assoc_files(
+            ' '.join([
+                ret.common_params,
+                ret.common_params_pass1,
+                params.common,
+                params.pass1,
+                extra_args_1pass]),
+            inFile, working_dir, timecode_file is not None)
+        params.pass2 += find_assoc_files(
+            ' '.join([
+                ret.common_params,
+                ret.common_params_pass2,
+                params.common,
+                params.pass2,
+                extra_args]),
+            inFile_2pass, working_dir, timecode_file is not None)
 
     return ret
 

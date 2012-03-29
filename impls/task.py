@@ -2,6 +2,7 @@ from collections import UserDict
 import os
 import json
 import sys
+from optparse import OptionParser
 from .utils import gen_cmd_line, AttrDict
 from .encx264_impl import encode, get_params, parse_encode_result_line
 from threading import Thread, Lock, Event
@@ -289,6 +290,7 @@ def task_run_impl(self, global_state, tasks):
                 continue
 
             task_tag = str(tasks.index(current_task))
+            sleep(current_task.get("start_delay_secs", 0))
             ret = encode(current_task.params,
                          print_hook,
                          working_dir=current_task.working_dir,
@@ -398,6 +400,19 @@ def task_load(task_file=default_task_file):
     else:
         tasks = []
 
+def task_set_start_delay(*args):
+    args = list(args)
+    if len(args) == 1:
+        args.insert(0, None)
+
+    task_id, delay_secs = args
+
+    if task_id is not None:
+        tasks[task_id].start_delay_secs = delay_secs
+    else:
+        for task in tasks:
+            task.start_delay_secs = delay_secs
+
 def task_help():
     print("Usage:")
     print(os.path.split(sys.argv[0])[-1], "!task <command> <arguments>")
@@ -410,6 +425,7 @@ def task_help():
     print("reset <one or more task IDs>")
     print("reset_all")
     print("clear")
+    print("set_start_delay [<optional task ID>] <delay seconds>")
     print("run [max slots] [output refresh rate]")
 
 def task_do_command():
@@ -427,6 +443,8 @@ def task_do_command():
         "clear": task_clear,
         "reset": lambda: task_reset([int(x) for x in args]),
         "reset_all": lambda: task_reset(range(len(tasks))),
+        "set_start_delay": 
+            lambda: task_set_start_delay(*[int(x) for x in args]),
         "run": lambda: eval('task_run(' + ','.join(args) + ')')
     }
     if command not in commands:

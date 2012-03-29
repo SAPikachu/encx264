@@ -313,6 +313,22 @@ def task_run_impl(self, global_state, tasks):
                             .format(**self.encode_result)
                     self.encode_result = None
 
+                completion_cmd = current_task.get("completion_cmd", "")
+                if completion_cmd:
+                    try:
+                        subprocess.call(
+                            "cmd /c" + completion_cmd.format(
+                                task_id=tasks.index(current_task),
+                                params=gen_cmd_line(current_task.params),
+                            ),
+                            creationflags=subprocess.CREATE_NEW_CONSOLE,
+                        )
+                    except Exception as e:
+                        current_task.set_state(
+                            task_states.error,
+                            "Failed to run completion command: " + str(e),
+                        )
+
             self.msg = ''
 
             task_save()
@@ -413,6 +429,18 @@ def task_set_param(param_name, *args):
         for task in tasks:
             setattr(task, param_name, value)
 
+def task_set_completion_cmd(*args):
+    args = list(args)
+    try:
+        task_id = int(args[0])
+    except ValueError:
+        task_id = None
+    else:
+        args.pop(0)
+
+    command = gen_cmd_line(args)
+    task_set_param("completion_cmd", task_id, command)
+
 def task_help():
     print("Usage:")
     print(os.path.split(sys.argv[0])[-1], "!task <command> <arguments>")
@@ -426,6 +454,11 @@ def task_help():
     print("reset_all")
     print("clear")
     print("set_start_delay [<optional task ID>] <delay seconds>")
+    print("set_completion_cmd [<optional task ID>] <command>")
+    print(   "    * You can use following parameter placeholders in command:")
+    print(   "        # {param}")
+    print(   "        # {task_id}")
+    print(r"""    ex: encx264 !task set_completion_cmd echo {param}""")
     print("run [max slots] [output refresh rate]")
 
 def task_do_command():
@@ -445,6 +478,7 @@ def task_do_command():
         "reset_all": lambda: task_reset(range(len(tasks))),
         "set_start_delay": 
             lambda: task_set_param("start_delay_secs", *[int(x) for x in args]),
+        "set_completion_cmd": lambda: task_set_completion_cmd(*args),
         "run": lambda: eval('task_run(' + ','.join(args) + ')')
     }
     if command not in commands:

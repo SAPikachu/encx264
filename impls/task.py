@@ -400,18 +400,18 @@ def task_load(task_file=default_task_file):
     else:
         tasks = []
 
-def task_set_start_delay(*args):
+def task_set_param(param_name, *args):
     args = list(args)
     if len(args) == 1:
         args.insert(0, None)
 
-    task_id, delay_secs = args
+    task_id, value = args
 
     if task_id is not None:
-        tasks[task_id].start_delay_secs = delay_secs
+        setattr(tasks[task_id], param_name, value)
     else:
         for task in tasks:
-            task.start_delay_secs = delay_secs
+            setattr(task, param_name, value)
 
 def task_help():
     print("Usage:")
@@ -444,7 +444,7 @@ def task_do_command():
         "reset": lambda: task_reset([int(x) for x in args]),
         "reset_all": lambda: task_reset(range(len(tasks))),
         "set_start_delay": 
-            lambda: task_set_start_delay(*[int(x) for x in args]),
+            lambda: task_set_param("start_delay_secs", *[int(x) for x in args]),
         "run": lambda: eval('task_run(' + ','.join(args) + ')')
     }
     if command not in commands:

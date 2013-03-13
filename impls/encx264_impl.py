@@ -177,12 +177,36 @@ def get_params(raw_args=None, print=print, working_dir=None):
             timecode_file = os.path.abspath(
                 os.path.join(working_dir, timecode_file))
 
-    if not os.path.isfile(inFile):
-        print("{0} doesn't exist!".format(inFile))
+    def _sanitize_input_file(name):
+        if not os.path.isfile(name):
+            try:
+                name.encode(sys.stdout.encoding)
+            except UnicodeEncodeError:
+                # HACK: Try to redecode file name
+                try:
+                    name = (bytes([ord(x) for x in name])
+                            .decode(sys.stdout.encoding))
+                except UnicodeDecodeError:
+                    pass
+
+                if not os.path.isfile(name):
+                    print("{0} doesn't exist!".format(name)
+                          .encode(sys.stdout.encoding, errors="replace")
+                          .decode(sys.stdout.encoding))
+                    return None
+
+            else:
+                print("{0} doesn't exist!".format(name))
+                return None
+
+        return name
+
+    inFile = _sanitize_input_file(inFile)
+    if not inFile:
         return None
 
-    if not os.path.isfile(inFile_2pass):
-        print("{0} doesn't exist!".format(inFile_2pass))
+    inFile_2pass = _sanitize_input_file(inFile_2pass)
+    if not inFile_2pass:
         return None
 
     if timecode_file:

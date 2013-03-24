@@ -264,14 +264,16 @@ def get_params(raw_args=None, print=print, working_dir=None):
                 params.pass1,
                 extra_args_1pass]),
             inFile, working_dir, timecode_file is not None)
-        params.pass2 += find_assoc_files(
-            ' '.join([
-                ret.common_params,
-                ret.common_params_pass2,
-                params.common,
-                params.pass2,
-                extra_args]),
-            inFile_2pass, working_dir, timecode_file is not None)
+
+        if "pass2" in params:
+            params.pass2 += find_assoc_files(
+                ' '.join([
+                    ret.common_params,
+                    ret.common_params_pass2,
+                    params.common,
+                    params.pass2,
+                    extra_args]),
+                inFile_2pass, working_dir, timecode_file is not None)
 
     return ret
 

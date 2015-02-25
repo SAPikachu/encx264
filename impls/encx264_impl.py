@@ -278,13 +278,13 @@ def get_params(raw_args=None, print=print, working_dir=None):
     return ret
 
 def parse_encode_result_line(line):
-    pat = r"\s*encoded \d+ frames,.*"
+    pat = r"\s*encoded \d+ frames.*"
     m = re.match(pat, line)
     if not m:
         return None
 
-    fps = re.search(r",\s*([\d\.]+)\s*fps", line).group(1)
-    bitrate = re.search(r",\s*([\d\.]+)\s*kb/s", line).group(1)
+    fps = re.search(r"([\d\.]+)\s*fps", line).group(1)
+    bitrate = re.search(r"([\d\.]+)\s*kb/s", line).group(1)
 
     return {
         "fps": float(fps),

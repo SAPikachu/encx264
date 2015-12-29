@@ -1,5 +1,5 @@
 rd /s /q build 2>nul
-call d:\Python31\Scripts\cxfreeze.bat encx264.py --target-dir build
+call C:\Python33\Scripts\cxfreeze.bat encx264.py --target-dir build
 md build\pyd
 move build\*.pyd build\pyd
 rd /s /q tmp
@@ -8,7 +8,7 @@ copy encx264.py tmp
 cd tmp
 echo. > imports.py
 for %%f in (..\impls\*.py) do copy /b imports.py + "%%f" imports.py
-call d:\Python31\Scripts\cxfreeze.bat encx264.py --target-dir build --include-modules imports
+call C:\Python33\Scripts\cxfreeze.bat encx264.py --target-dir build --include-modules imports
 copy /y build\encx264.exe ..\build
 cd ..
 rd /s /q tmp

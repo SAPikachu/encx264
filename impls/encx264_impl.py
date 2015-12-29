@@ -143,6 +143,12 @@ def get_params(raw_args=None, print=print, working_dir=None):
     p1_only = opt.p1_only
     append_log = opt.append_log
 
+    if "common" not in params:
+        params["common"] = ""
+
+    if "common_pre" not in params:
+        params["common_pre"] = ""
+
     # backward compatibility
     tc = ""
 
@@ -322,7 +328,7 @@ def encode_impl(raw_args=None,
             if os.path.isfile(args.statsFile):
                 os.remove(args.statsFile)
                 
-            cmdline = ('{x264_exec} {common_params} {common_params_pass1} ' + \
+            cmdline = ('{x264_exec} {params[common_pre]} {common_params} {common_params_pass1} ' + \
                        '{params[common]} {params[pass1]} ' + \
                        '{extra_args_1pass} "{inFile}"') \
                       .format(**args).format(**args)
@@ -393,7 +399,7 @@ def encode_impl(raw_args=None,
 
             args.bitrate = int(args.bitrate * args.opt.bitrate_ratio)
             
-            cmdline = ('{x264_exec} {common_params} {common_params_pass2} ' + \
+            cmdline = ('{x264_exec} {params[common_pre]} {common_params} {common_params_pass2} ' + \
                        '{params[common]} {params[pass2]} ' + \
                        '{extra_args} "{inFile_2pass}"') \
                       .format(**args).format(**args)

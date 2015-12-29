@@ -105,4 +105,11 @@ encode_targets = {
         "pass1": '--crf {crf}',
         "pass2": '--bitrate {bitrate} --partitions "p8x8,b8x8,i4x4"',
     },
+        "vspipe" : {
+        "default_sar": "1:1",
+        "default_ref": 9,
+        "x264_path": r".\encx264.exe",
+        "common_pre": r'!piper --del-last-arg "C:\Program Files (x86)\VapourSynth\core64\vspipe.exe" --y4m {inFile} - ---- "D:\!VideoProcessing\x264_32_tMod-10bit-all.exe" --demuxer y4m - --preset veryslow',
+        "pass1": '--crf 20 --output "{outFile}"',
+    },
 }

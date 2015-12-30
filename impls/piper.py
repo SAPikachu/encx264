@@ -2,6 +2,11 @@
 
 import sys
 import subprocess
+from ctypes import windll
+
+
+CREATE_NO_WINDOW = 0x08000000
+GetConsoleWindow = windll.kernel32.GetConsoleWindow
 
 
 def main(argv):
@@ -29,9 +34,17 @@ def main(argv):
 
     p1 = None
     p2 = None
+    extra_args = {
+        "startupinfo": subprocess.STARTUPINFO,
+    }
+    extra_args["startupinfo"].dwFlags = subprocess.STARTF_USESHOWWINDOW
+    extra_args["startupinfo"].wShowWindow = subprocess.SW_HIDE
+    if not GetConsoleWindow():
+        extra_args["creationflags"] = CREATE_NO_WINDOW
+
     try:
-        p1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(cmd2, stdin=p1.stdout)
+        p1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, **extra_args)
+        p2 = subprocess.Popen(cmd2, stdin=p1.stdout, **extra_args)
         p1.stdout.close()
         p1.stdout = None
         p1.wait()
